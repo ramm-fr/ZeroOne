@@ -310,59 +310,93 @@
         try {
             const res = await db.auth.getSession();
             session = res.data.session;
-        } catch(e) {}
+        } catch(e) { console.error('getSession failed:', e); }
 
         if (!session) { window.location.href = 'index.html'; return; }
         myId = session.user.id;
 
-        // Load own profile for avatar + UID
+        // ── Step 1: Get own UID — try every source ────────────────
+        // Source A: Supabase profiles table
         try {
-            const { data: p } = await db.from('profiles')
+            const { data: p } = await db
+                .from('profiles')
                 .select('display_name, avatar, uid')
                 .eq('id', myId)
                 .single();
-
-            if (p) {
+            if (p && p.uid) {
                 myUid = p.uid;
-                const grad = AVATAR_GRADIENTS[p.avatar] || {from:'#52525b',to:'#27272a'};
-                const ini  = p.display_name
-                    ? p.display_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
-                    : '??';
-                const nav = document.getElementById('nav-avatar');
-                nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
-                nav.textContent = ini;
+                renderNavAvatar(p.display_name, p.avatar);
             }
-        } catch(e) {
-            // fallback localStorage
+        } catch(e) {}
+
+        // Source B: localStorage (always try — even if Supabase worked, uid might be null)
+        if (!myUid) {
             const raw = localStorage.getItem('userProfile');
             if (raw) {
-                const p    = JSON.parse(raw);
-                myUid      = p.uid || null;
-                const grad = AVATAR_GRADIENTS[p.avatar] || {from:'#52525b',to:'#27272a'};
-                const ini  = p.displayName
-                    ? p.displayName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
-                    : '??';
-                const nav = document.getElementById('nav-avatar');
-                nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
-                nav.textContent = ini;
+                try {
+                    const p = JSON.parse(raw);
+                    if (p.uid) { myUid = p.uid; renderNavAvatar(p.displayName, p.avatar); }
+                } catch(e) {}
             }
         }
 
-        // Build deterministic conversation ID from two UIDs (sorted)
-        if (myUid && cUid) {
-            const parts = [myUid, cUid].sort();
+        // Source C: Self-heal — generate + save a UID right now if still missing
+        if (!myUid) {
+            myUid = (Math.floor(Math.random() * 900000) + 100000).toString();
+            // Save to profiles table so it persists
+            try {
+                await db.from('profiles').upsert({ id: myId, uid: myUid }, { onConflict: 'id' });
+            } catch(e) {}
+            // Save to localStorage too
+            const raw = localStorage.getItem('userProfile');
+            if (raw) {
+                try {
+                    const p = JSON.parse(raw);
+                    p.uid = myUid;
+                    localStorage.setItem('userProfile', JSON.stringify(p));
+                } catch(e) {}
+            }
+            toast('UID assigned: #' + myUid, 'info', 3000);
+        }
+
+        // ── Step 2: Resolve contact UID ───────────────────────────
+        let resolvedCUid = cUid;
+
+        // If cUid missing from URL (old contact link) — look up by name
+        if (!resolvedCUid && cName && cName !== 'Unknown') {
+            try {
+                const { data: cp } = await db
+                    .from('profiles')
+                    .select('uid')
+                    .ilike('display_name', cName)
+                    .limit(1);
+                if (cp && cp.length > 0 && cp[0].uid) resolvedCUid = cp[0].uid;
+            } catch(e) {}
+        }
+
+        // ── Step 3: Build conversation ID ─────────────────────────
+        if (myUid && resolvedCUid) {
+            const parts = [myUid, resolvedCUid].sort();
             conversationId = parts[0] + '_' + parts[1];
         } else {
-            // No real UIDs — show a warning, chat still works locally
-            toast('Could not determine conversation ID — messages may not sync.', 'warn', 4000);
+            const missing = [];
+            if (!resolvedCUid) missing.push('contact UID missing — delete and re-add this contact from dashboard');
+            toast(missing.join('. '), 'error', 8000);
+            console.error('conversationId failed — myUid:', myUid, 'resolvedCUid:', resolvedCUid);
         }
 
         await loadHistory();
         subscribeRealtime();
-
         buildEmojiGrid();
-        // sticker grid loads lazily when picker opens
         lucide.createIcons();
+    }
+
+    function renderNavAvatar(name, avatar) {
+        const grad = AVATAR_GRADIENTS[avatar] || {from:'#52525b',to:'#27272a'};
+        const ini  = name ? name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : '??';
+        const nav  = document.getElementById('nav-avatar');
+        nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
+        nav.textContent = ini;
     }
 
     // ── Load message history ──────────────────────────────────────

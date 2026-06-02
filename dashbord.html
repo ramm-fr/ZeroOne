@@ -215,6 +215,11 @@
                         .eq('id', session.user.id)
                         .single();
                     if (!error && p) {
+                        // Self-heal: if uid is null, assign one now so chat works
+                        if (!p.uid) {
+                            p.uid = (Math.floor(Math.random() * 900000) + 100000).toString();
+                            await db.from('profiles').update({ uid: p.uid }).eq('id', session.user.id);
+                        }
                         const local = {
                             displayName: p.display_name,
                             gender:      p.gender,
