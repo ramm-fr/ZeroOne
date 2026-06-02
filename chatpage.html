@@ -160,9 +160,25 @@
         </div>
 
         <!-- ── STICKER PICKER ── -->
-        <div id="sticker-picker" class="picker-panel hidden absolute bottom-20 left-4 sm:left-6 bg-[#111111] border border-zinc-800/80 shadow-2xl z-40 w-80 p-3">
-            <p class="text-[9px] uppercase tracking-widest text-zinc-600 mb-2 px-1">Stickers</p>
-            <div id="sticker-grid" class="grid grid-cols-4 gap-2 max-h-52 overflow-y-auto custom-scroll"></div>
+        <div id="sticker-picker" class="picker-panel hidden absolute bottom-20 left-4 sm:left-6 bg-[#111111] border border-zinc-800/80 shadow-2xl z-40 w-80 flex flex-col" style="max-height:340px">
+            <!-- Header + search -->
+            <div class="flex items-center gap-2 px-3 pt-3 pb-2 border-b border-zinc-800/60 flex-shrink-0">
+                <p class="text-[9px] uppercase tracking-widest text-zinc-600 flex-shrink-0">GIF / Sticker</p>
+                <div class="flex-1 relative">
+                    <input id="gif-search" type="text" placeholder="Search GIFs…"
+                        oninput="onGifSearch(this.value)"
+                        class="w-full bg-zinc-900/40 border border-zinc-800 focus:border-zinc-500 text-xs text-zinc-200 placeholder-zinc-700 px-2.5 py-1.5 focus:outline-none transition-colors" />
+                </div>
+                <span class="text-[8px] font-mono text-zinc-700 flex-shrink-0">via Tenor</span>
+            </div>
+            <!-- Category tabs -->
+            <div id="gif-categories" class="flex gap-1 px-3 py-2 overflow-x-auto flex-shrink-0 custom-scroll" style="scrollbar-width:none"></div>
+            <!-- GIF grid -->
+            <div id="sticker-grid" class="flex-1 overflow-y-auto custom-scroll px-3 pb-3">
+                <div id="gif-loading" class="flex items-center justify-center py-6 text-zinc-600">
+                    <span class="text-[10px] font-mono tracking-widest">Loading…</span>
+                </div>
+            </div>
         </div>
 
         <!-- INPUT BAR -->
@@ -345,7 +361,7 @@
         subscribeRealtime();
 
         buildEmojiGrid();
-        buildStickerGrid();
+        // sticker grid loads lazily when picker opens
         lucide.createIcons();
     }
 
@@ -393,9 +409,10 @@
     function renderRow(row) {
         const isMe      = row.sender_uid === myUid;
         const isSticker = row.type === 'sticker';
-        const content   = isSticker ? JSON.parse(row.body) : row.body;
+        const isGif     = row.type === 'gif';
+        const content   = (isSticker || isGif) ? JSON.parse(row.body) : row.body;
         const ts        = new Date(row.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-        appendMessage(content, isMe ? 'me' : 'other', isSticker, ts);
+        appendMessage(content, isMe ? 'me' : 'other', isSticker, ts, isGif ? 'gif' : null);
     }
 
     // ── Insert message to Supabase ────────────────────────────────
@@ -481,39 +498,130 @@
         });
     }
 
-    // ── STICKER DATA ──────────────────────────────────────────────
-    const STICKERS = [
-        {label:'👾 Glitch', bg:'#1a1a2e', text:'GLITCH'},
-        {label:'💀 Skull',  bg:'#1c1c1c', text:'☠️'},
-        {label:'🔥 Fire',   bg:'#1a0a00', text:'🔥🔥🔥'},
-        {label:'⚡ Zap',    bg:'#0d1117', text:'⚡ ZAP'},
-        {label:'🤖 Bot',    bg:'#001122', text:'🤖 BOT'},
-        {label:'🎮 GG',     bg:'#0a0014', text:'GG EZ'},
-        {label:'💯 Facts',  bg:'#001a00', text:'💯'},
-        {label:'🚀 Launch', bg:'#000d1a', text:'🚀 LFG'},
-        {label:'🔐 Secure', bg:'#001a0d', text:'🔐 SAFE'},
-        {label:'👻 Ghost',  bg:'#111111', text:'👻 BOO'},
-        {label:'✅ Done',   bg:'#001a07', text:'✅ DONE'},
-        {label:'❌ Denied', bg:'#1a0000', text:'❌ NOPE'},
-    ];
+    // ── STICKER / GIF via Tenor API ───────────────────────────────
+    // Uses Tenor v2 API (free, no billing — just a client key)
+    const TENOR_KEY  = 'AIzaSyAyimkuYQYF_FXVALexPmv55SkidyuFa9o'; // Tenor demo key (limited) — replace with your own from tenor.com/developer
+    const TENOR_LIMIT = 20;
+    let gifSearchTimer = null;
 
-    function buildStickerGrid() {
-        const grid = document.getElementById('sticker-grid');
+    const GIF_CATEGORIES = [
+        { label: '� Trending',  q: '' },
+        { label: '� Funny',     q: 'funny' },
+        { label: '� Love',      q: 'love' },
+        { label: '👊 Hype',      q: 'hype' },
+        { label: '� Reaction',  q: 'reaction' },
+        { label: '� Celebrate', q: 'celebrate' },
+        { label: '� Sad',       q: 'sad' },
+        { label: '� Cool',      q: 'cool' },
+    ];
+    let activeCategory = '';
+
+    async function fetchGifs(query) {
+        const grid    = document.getElementById('sticker-grid');
+        const loading = document.getElementById('gif-loading');
         grid.innerHTML = '';
-        STICKERS.forEach(s => {
+        if (loading) { loading.style.display = 'flex'; grid.appendChild(loading); }
+
+        try {
+            const endpoint = query
+                ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${TENOR_KEY}&limit=${TENOR_LIMIT}&media_filter=gif`
+                : `https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=${TENOR_LIMIT}&media_filter=gif`;
+
+            const res  = await fetch(endpoint);
+            const json = await res.json();
+
+            grid.innerHTML = '';
+
+            if (!json.results || json.results.length === 0) {
+                grid.innerHTML = '<p class="text-[10px] text-zinc-600 text-center py-4 col-span-3">No results found.</p>';
+                return;
+            }
+
+            // Two-column masonry-style grid
+            const cols = [document.createElement('div'), document.createElement('div')];
+            cols.forEach(c => {
+                c.className = 'flex flex-col gap-1.5';
+                grid.appendChild(c);
+            });
+            grid.className = 'flex-1 overflow-y-auto custom-scroll px-3 pb-3 grid gap-1.5';
+            grid.style.gridTemplateColumns = '1fr 1fr';
+
+            json.results.forEach((item, i) => {
+                const gif = item.media_formats?.gif || item.media_formats?.tinygif;
+                if (!gif) return;
+
+                const btn = document.createElement('button');
+                btn.className = 'w-full overflow-hidden border border-zinc-800 hover:border-zinc-500 transition-colors cursor-pointer bg-zinc-900/40';
+                btn.title = item.content_description || 'GIF';
+
+                const img = document.createElement('img');
+                img.src          = gif.url;
+                img.alt          = item.content_description || 'GIF';
+                img.className    = 'w-full h-auto block';
+                img.loading      = 'lazy';
+                img.style.aspectRatio = '1';
+                img.style.objectFit   = 'cover';
+
+                btn.appendChild(img);
+                btn.onclick = () => {
+                    sendGif({ url: gif.url, alt: item.content_description || 'GIF' });
+                    closePickers();
+                };
+
+                cols[i % 2].appendChild(btn);
+            });
+
+        } catch(err) {
+            grid.innerHTML = '<p class="text-[10px] text-red-500 text-center py-4">Failed to load GIFs.</p>';
+            console.error('Tenor fetch error:', err);
+        }
+    }
+
+    function buildCategoryTabs() {
+        const bar = document.getElementById('gif-categories');
+        bar.innerHTML = '';
+        GIF_CATEGORIES.forEach(cat => {
             const btn = document.createElement('button');
-            btn.className = 'aspect-square border border-zinc-800 hover:border-zinc-500 transition-colors cursor-pointer flex items-center justify-center text-sm font-bold tracking-widest font-mono';
-            btn.style.background = s.bg;
-            btn.style.color = '#e4e4e7';
-            btn.textContent = s.text;
-            btn.title = s.label;
-            btn.onclick = () => { sendSticker(s); closePickers(); };
-            grid.appendChild(btn);
+            btn.className = 'flex-shrink-0 text-[10px] font-mono px-2.5 py-1 border transition-colors cursor-pointer whitespace-nowrap ' +
+                (cat.q === activeCategory
+                    ? 'border-zinc-400 text-white bg-zinc-800'
+                    : 'border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300');
+            btn.textContent = cat.label;
+            btn.onclick = () => {
+                activeCategory = cat.q;
+                document.getElementById('gif-search').value = '';
+                buildCategoryTabs(); // re-render to update active state
+                fetchGifs(cat.q);
+            };
+            bar.appendChild(btn);
         });
     }
 
+    function onGifSearch(val) {
+        clearTimeout(gifSearchTimer);
+        gifSearchTimer = setTimeout(() => {
+            activeCategory = '';
+            buildCategoryTabs();
+            fetchGifs(val.trim());
+        }, 400);
+    }
+
+    // Called when user picks a GIF — sends it as a message
+    function sendGif(gif) {
+        appendMessage(gif, 'me', false, null, 'gif');
+        persistMessage(JSON.stringify(gif), 'gif');
+    }
+
+    function buildStickerGrid() {
+        // Populated dynamically via Tenor API when picker opens
+        buildCategoryTabs();
+        fetchGifs('');
+    }
+
     // ── Picker toggle ─────────────────────────────────────────────
-    let activePicker = null;
+    let activePicker   = null;
+    let gifLoaded      = false;   // only fetch trending once per session
+
     function togglePicker(type) {
         if (activePicker === type) { closePickers(); return; }
         closePickers();
@@ -523,6 +631,13 @@
         el.classList.remove('hidden');
         el.classList.add('open');
         btn.classList.add('picker-btn-active');
+
+        // Load GIFs the first time the sticker picker opens
+        if (type === 'sticker' && !gifLoaded) {
+            gifLoaded = true;
+            buildCategoryTabs();
+            fetchGifs('');
+        }
     }
     function closePickers() {
         activePicker = null;
@@ -611,7 +726,7 @@
         return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     }
 
-    function appendMessage(content, side, isSticker, tsOverride) {
+    function appendMessage(content, side, isSticker, tsOverride, msgType) {
         const area = document.getElementById('messages-area');
         const isMe = side === 'me';
         const wrapper = document.createElement('div');
@@ -625,7 +740,18 @@
         }
 
         const bubble = document.createElement('div');
-        if (isSticker) {
+
+        if (msgType === 'gif') {
+            // Real GIF from Tenor
+            bubble.className = 'flex flex-col items-' + (isMe ? 'end' : 'start') + ' gap-1';
+            const gifData = typeof content === 'string' ? JSON.parse(content) : content;
+            const img = document.createElement('img');
+            img.src       = gifData.url;
+            img.alt       = gifData.alt || 'GIF';
+            img.className = 'max-w-[200px] border border-zinc-700';
+            img.style.borderRadius = '2px';
+            bubble.appendChild(img);
+        } else if (isSticker) {
             bubble.className = 'flex flex-col items-' + (isMe ? 'end' : 'start') + ' gap-1';
             const box = document.createElement('div');
             box.className = 'w-24 h-24 border border-zinc-700 flex items-center justify-center text-2xl font-bold font-mono tracking-widest';
