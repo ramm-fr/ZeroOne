@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="toast.js"></script>
     <style>
         body { font-family: 'Space Grotesk', sans-serif; background-color: #0c0c0c; overflow: hidden; }
         .heading-font { font-family: 'Syne', sans-serif; }
@@ -41,7 +42,7 @@
 
     <!-- MAIN -->
     <main class="flex-1 w-full p-4 md:p-6 flex flex-col justify-between overflow-hidden relative min-h-0">
-        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1a1a1a_1px,transparent_1px),linear-gradient(to_bottom,#1a1a1a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.4] pointer-events-none z-0"></div>>
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1a1a1a_1px,transparent_1px),linear-gradient(to_bottom,#1a1a1a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.4] pointer-events-none z-0"></div>
 
         <!-- CONTACTS PANEL -->
         <section class="w-full h-full border border-zinc-800/80 bg-[#111111] rounded-none overflow-hidden flex flex-col min-h-0 z-10">
@@ -286,12 +287,13 @@
         }
 
         function clearProfileAndGoSetup() {
-            if (confirm('Reset your identity? This will clear all saved profile data.')) {
+            toastConfirm('Reset your identity?\nThis will sign you out and clear all saved profile data.', true).then(ok => {
+                if (!ok) return;
                 db.auth.signOut().finally(() => {
                     localStorage.removeItem('userProfile');
                     window.location.href = 'index.html';
                 });
-            }
+            });
         }
 
         // ── Settings drawer ───────────────────────────────────────────
@@ -446,15 +448,53 @@
 
         function addContactFromLastSearch() {
             const u = window._lastSearchResult;
-            if (u) addContactToList(u.uid, u.name, u.role, u.initials);
+            if (u) saveAndAddContact(u.uid, u.name, u.role, u.initials);
+        }
+
+        // ── Save contact to Supabase, then render ─────────────────────
+        async function saveAndAddContact(uid, name, role, initials) {
+            // Prevent duplicate contacts in the UI
+            const existing = document.querySelector(`#contacts-container [data-uid="${uid}"]`);
+            if (existing) {
+                toast('Already in your contacts.', 'info');
+                toggleAddModal(false);
+                return;
+            }
+
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (session) {
+                    const { error } = await db.from('contacts').upsert({
+                        owner_id:    session.user.id,
+                        contact_uid: uid,
+                        name,
+                        role,
+                        initials,
+                        added_at:    new Date().toISOString(),
+                    }, { onConflict: 'owner_id,contact_uid' });
+
+                    if (error) {
+                        console.error('Failed to save contact:', error);
+                        toast('Saved locally only — sync failed.', 'warn', 3000);
+                    } else {
+                        toast('Contact added.', 'success', 2000);
+                    }
+                }
+            } catch(e) {
+                console.warn('Supabase contact save failed:', e);
+                toast('Saved locally only.', 'warn', 2500);
+            }
+
+            addContactToList(uid, name, role, initials);
         }
 
         function addContactToList(uid, name, role, initials) {
             const chatUrl = 'chatpage.html?type=contact&name=' + encodeURIComponent(name) + '&role=' + encodeURIComponent(role) + '&initials=' + encodeURIComponent(initials);
             const container = document.getElementById('contacts-container');
             const row = document.createElement('div');
-            row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/10 transition-colors';
+            row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/10 transition-colors border-b border-zinc-800/60 last:border-0';
             row.setAttribute('data-name', name);
+            row.setAttribute('data-uid', uid);
             row.innerHTML = `
                 <div class="col-span-6 sm:col-span-5 flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center text-[10px] font-bold tracking-widest text-zinc-400">${initials}</div>
@@ -468,7 +508,7 @@
                     <button class="icon-hover p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer" onclick="window.location.href='${chatUrl}'">
                         <i data-lucide="message-square" class="w-4 h-4"></i>
                     </button>
-                    <button class="icon-hover p-1 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer" onclick="deleteContact(this)">
+                    <button class="icon-hover p-1 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer" onclick="deleteContact(this, '${uid}')">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>`;
@@ -478,12 +518,44 @@
             toggleAddModal(false);
         }
 
-        function deleteContact(btn) {
+        // ── Delete contact from Supabase + DOM ────────────────────────
+        async function deleteContact(btn, uid) {
             btn.closest('.grid').remove();
             const container = document.getElementById('contacts-container');
             if (container.querySelectorAll('.grid').length === 0) {
                 document.getElementById('empty-state').style.display = 'flex';
             }
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (session && uid) {
+                    await db.from('contacts')
+                        .delete()
+                        .eq('owner_id', session.user.id)
+                        .eq('contact_uid', uid);
+                }
+            } catch(e) { console.warn('Failed to delete contact from Supabase:', e); }
+            toast('Contact removed.', 'info', 2000);
+        }
+
+        // ── Load contacts from Supabase on page load ──────────────────
+        async function loadContacts() {
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) return;
+
+                const { data, error } = await db
+                    .from('contacts')
+                    .select('contact_uid, name, role, initials')
+                    .eq('owner_id', session.user.id)
+                    .order('added_at', { ascending: true });
+
+                if (error) { console.warn('Could not load contacts:', error); return; }
+                if (!data || data.length === 0) return;
+
+                data.forEach(c => {
+                    addContactToList(c.contact_uid, c.name, c.role, c.initials || c.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2));
+                });
+            } catch(e) { console.warn('loadContacts failed:', e); }
         }
 
         function filterContacts() {
@@ -508,6 +580,7 @@
                 // If Supabase fails (e.g. offline), fall through to localStorage
             }
             loadProfile();
+            loadContacts();
         }
         guardAndLoad();
     </script>

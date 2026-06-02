@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="toast.js"></script>
     
     <style>
         body {
@@ -253,8 +254,8 @@
             const linkedinLink = document.getElementById('linkedin-link').value.trim();
             const githubLink   = document.getElementById('github-link').value.trim();
 
-            if (!displayName)   { showError('Please enter a display name'); return; }
-            if (!selectedAvatar){ showError('Please select an avatar');     return; }
+            if (!displayName)   { toast('Please enter a display name', 'error'); return; }
+            if (!selectedAvatar){ toast('Please select an avatar', 'error');     return; }
 
             const btn = document.querySelector('button[onclick="saveProfile()"]');
             btn.disabled = true;
@@ -302,7 +303,7 @@
                 window.location.href = 'dashbord.html';
             } catch (err) {
                 console.error(err);
-                showError(err.message || 'Failed to save profile. Please try again.');
+                toast(err.message || 'Failed to save profile. Please try again.', 'error', 4000);
                 btn.disabled = false;
                 btn.innerHTML = '<span>Complete Setup</span><i data-lucide="arrow-up-right" class="w-4 h-4"></i>';
                 lucide.createIcons();
@@ -310,7 +311,7 @@
         }
 
         function showError(msg) {
-            alert(msg);
+            toast(msg, 'error');
         }
 
         // ── Auth guard ────────────────────────────────────────────────

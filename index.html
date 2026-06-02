@@ -14,6 +14,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="toast.js"></script>
     
     <style>
         body {
@@ -64,16 +65,16 @@
             <div class="w-full max-w-sm mx-auto my-auto space-y-8">
                 <div class="space-y-2">
                     <h1 id="form-title" class="heading-font text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-none">
-                        ENTER PLATFORM
+                        CREATE IDENTITY
                     </h1>
-                    <p id="form-subtitle" class="text-[11px] tracking-wide text-zinc-500 uppercase">Provide credentials or authorization node</p>
+                    <p id="form-subtitle" class="text-[11px] tracking-wide text-zinc-500 uppercase">Establish new authorization node</p>
                 </div>
 
                 <!-- Mode Toggle -->
                 <div class="flex items-center justify-center gap-2 text-[10px] tracking-widest text-zinc-500 uppercase">
-                    <button id="login-mode-btn" onclick="setMode('login')" class="text-white hover:text-zinc-300 transition-colors cursor-pointer">Login</button>
+                    <button id="signup-mode-btn" onclick="setMode('signup')" class="text-white hover:text-zinc-300 transition-colors cursor-pointer">Sign Up</button>
                     <div class="w-[1px] h-3 bg-zinc-700"></div>
-                    <button id="signup-mode-btn" onclick="setMode('signup')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Sign Up</button>
+                    <button id="login-mode-btn" onclick="setMode('login')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Login</button>
                     <div class="w-[1px] h-3 bg-zinc-700"></div>
                     <button id="forgot-mode-btn" onclick="setMode('forgot')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Forgot</button>
                 </div>
@@ -129,7 +130,7 @@
                     <div class="pt-2">
                         <button type="submit" id="submit-btn"
                             class="group w-full bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-[0.2em] uppercase h-11 transition-all duration-300 flex items-center justify-between px-5 cursor-pointer">
-                            <span id="submit-text">Execute Connection</span>
+                            <span id="submit-text">Initialize Node</span>
                             <i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>
                         </button>
                     </div>
@@ -296,7 +297,7 @@
 
             } catch (error) {
                 console.error('Auth error:', error);
-                alert(error.message || 'Authentication failed. Please check your credentials.');
+                toast(error.message || 'Authentication failed. Please check your credentials.', 'error', 4000);
                 
                 // Re-enable button
                 submitButton.disabled = false;
@@ -352,7 +353,7 @@
 
             // Check if email confirmation is required
             if (data.user && !data.session) {
-                alert('Account created! Please check your email to confirm your account.');
+                toast('Account created! Please check your email to confirm your account.', 'success', 5000);
                 submitButton.disabled = false;
                 submitButton.innerHTML = '<span>Initialize Node</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>';
                 lucide.createIcons();
@@ -377,7 +378,7 @@
                 throw error;
             }
 
-            alert('Password reset link sent! Please check your email to reset your password.');
+            toast('Password reset link sent! Please check your email.', 'success', 5000);
             submitButton.disabled = false;
             submitButton.innerHTML = '<span>Send Recovery</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>';
             lucide.createIcons();
