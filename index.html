@@ -414,6 +414,9 @@
 
         // Run session check on page load
         checkSession();
+
+        // ── Auth guard: redirect logged-in users away from login page ─
+        // (handled inside checkSession above — if session exists, goes to dashboard)
     </script>
 </body>
 </html>

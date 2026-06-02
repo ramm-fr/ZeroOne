@@ -41,7 +41,7 @@
 
     <!-- MAIN -->
     <main class="flex-1 w-full p-4 md:p-6 flex flex-col justify-between overflow-hidden relative min-h-0">
-        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1a1a1a_1px,transparent_1px),linear-gradient(to_bottom,#1a1a1a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.4] pointer-events-none z-0"></div>
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1a1a1a_1px,transparent_1px),linear-gradient(to_bottom,#1a1a1a_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.4] pointer-events-none z-0"></div>>
 
         <!-- CONTACTS PANEL -->
         <section class="w-full h-full border border-zinc-800/80 bg-[#111111] rounded-none overflow-hidden flex flex-col min-h-0 z-10">
@@ -289,7 +289,7 @@
             if (confirm('Reset your identity? This will clear all saved profile data.')) {
                 db.auth.signOut().finally(() => {
                     localStorage.removeItem('userProfile');
-                    window.location.href = 'profile-setup.html';
+                    window.location.href = 'index.html';
                 });
             }
         }
@@ -453,7 +453,7 @@
             const chatUrl = 'chatpage.html?type=contact&name=' + encodeURIComponent(name) + '&role=' + encodeURIComponent(role) + '&initials=' + encodeURIComponent(initials);
             const container = document.getElementById('contacts-container');
             const row = document.createElement('div');
-            row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/20 transition-colors border-b border-zinc-800/60 last:border-0';
+            row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/10 transition-colors';
             row.setAttribute('data-name', name);
             row.innerHTML = `
                 <div class="col-span-6 sm:col-span-5 flex items-center gap-3">
@@ -496,7 +496,20 @@
         }
 
         lucide.createIcons();
-        loadProfile();
+        // ── Auth guard: must be logged in ─────────────────────────────
+        async function guardAndLoad() {
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) {
+                    window.location.href = 'index.html';
+                    return;
+                }
+            } catch(e) {
+                // If Supabase fails (e.g. offline), fall through to localStorage
+            }
+            loadProfile();
+        }
+        guardAndLoad();
     </script>
 </body>
 </html>

@@ -196,9 +196,6 @@
         </div>
     </div>
 
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
         lucide.createIcons();
 
@@ -316,7 +313,31 @@
             alert(msg);
         }
 
-        initUserId();
+        // ── Auth guard ────────────────────────────────────────────────
+        // Must be logged in to access this page.
+        // If profile already exists → skip straight to dashboard (one profile per account).
+        async function guardPage() {
+            const { data: { session } } = await db.auth.getSession();
+            if (!session) {
+                // Not logged in → back to login
+                window.location.href = 'index.html';
+                return;
+            }
+            const { data: existing } = await db
+                .from('profiles')
+                .select('uid')
+                .eq('id', session.user.id)
+                .single();
+            if (existing?.uid) {
+                // Profile already set up → go to dashboard, can't create another
+                window.location.href = 'dashbord.html';
+                return;
+            }
+            // No profile yet → allow setup, then init UID
+            await initUserId();
+        }
+
+        guardPage();
     </script>
 </body>
 </html>
