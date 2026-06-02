@@ -303,6 +303,7 @@
     let myId         = null;   // auth user id
     let conversationId = null; // sorted "uid1_uid2"
     let realtimeSub  = null;
+    let pollingTimer = null;   // fallback polling
 
     // ── Auth guard + load profile + boot chat ─────────────────────
     async function init() {
@@ -387,6 +388,7 @@
 
         await loadHistory();
         subscribeRealtime();
+        startPolling();  // fallback polling
         buildEmojiGrid();
         lucide.createIcons();
     }
@@ -421,22 +423,87 @@
     }
 
     // ── Real-time subscription ────────────────────────────────────
-    function subscribeRealtime() {
+    async function subscribeRealtime() {
         if (!conversationId) return;
-        realtimeSub = db
-            .channel('chat:' + conversationId)
-            .on('postgres_changes', {
-                event:  'INSERT',
-                schema: 'public',
-                table:  'messages',
-                filter: 'conversation_id=eq.' + conversationId,
-            }, payload => {
-                // Only render if it's NOT from me (I already rendered on send)
-                if (payload.new.sender_uid !== myUid) {
-                    renderRow(payload.new);
+
+        try {
+            const { data: { session } } = await db.auth.getSession();
+            if (!session) {
+                console.warn('No session for realtime subscription');
+                return;
+            }
+
+            realtimeSub = db
+                .channel('chat:' + conversationId, {
+                    config: {
+                        presence: { key: myUid }
+                    }
+                })
+                .on('postgres_changes', {
+                    event:  'INSERT',
+                    schema: 'public',
+                    table:  'messages',
+                    filter: 'conversation_id=eq.' + conversationId,
+                }, payload => {
+                    console.log('Realtime message received:', payload);
+                    // Only render if it's NOT from me (I already rendered on send)
+                    if (payload.new.sender_uid !== myUid) {
+                        renderRow(payload.new);
+                    }
+                })
+                .subscribe((status) => {
+                    console.log('Realtime subscription status:', status);
+                    if (status === 'SUBSCRIBED') {
+                        console.log('Successfully subscribed to realtime updates');
+                        // Stop polling if realtime works
+                        if (pollingTimer) {
+                            clearInterval(pollingTimer);
+                            pollingTimer = null;
+                        }
+                    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+                        console.error('Realtime subscription failed');
+                    }
+                });
+        } catch (e) {
+            console.error('Realtime subscription error:', e);
+        }
+    }
+
+    // ── Polling fallback (if realtime fails) ─────────────────────
+    let lastMessageCount = 0;
+
+    async function startPolling() {
+        if (!conversationId) return;
+
+        // Get initial count
+        const { data: initialData } = await db
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId);
+        lastMessageCount = initialData?.length || 0;
+
+        pollingTimer = setInterval(async () => {
+            try {
+                const { data } = await db
+                    .from('messages')
+                    .select('*')
+                    .eq('conversation_id', conversationId)
+                    .order('created_at', { ascending: true });
+
+                if (data && data.length > lastMessageCount) {
+                    // New messages arrived
+                    const newMessages = data.slice(lastMessageCount);
+                    newMessages.forEach(msg => {
+                        if (msg.sender_uid !== myUid) {
+                            renderRow(msg);
+                        }
+                    });
+                    lastMessageCount = data.length;
                 }
-            })
-            .subscribe();
+            } catch (e) {
+                console.error('Polling error:', e);
+            }
+        }, 3000); // Check every 3 seconds
     }
 
     // ── Render one DB row ─────────────────────────────────────────
