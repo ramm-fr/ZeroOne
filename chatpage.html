@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comms Terminal — Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; background-color: #09090b; overflow: hidden; }
+        .heading-font { font-family: 'Syne', sans-serif; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+        .lucide { transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), color 0.2s ease; }
+        .icon-hover:hover .lucide { transform: scale(1.1); color: #ffffff; }
+        .rotate-hover:hover .lucide { transform: rotate(45deg); color: #ffffff; }
+
+        /* Message bubble animations */
+        @keyframes bubbleIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .msg-bubble { animation: bubbleIn 0.18s cubic-bezier(0.16,1,0.3,1) both; }
+
+        /* Typing dots */
+        @keyframes blink { 0%,80%,100% { opacity:.2 } 40% { opacity:1 } }
+        .typing-dot { animation: blink 1.4s infinite both; }
+        .typing-dot:nth-child(2) { animation-delay:.2s; }
+        .typing-dot:nth-child(3) { animation-delay:.4s; }
+
+        /* Textarea auto-grow */
+        #chat-input { resize: none; overflow-y: hidden; max-height: 120px; overflow-y: auto; }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col m-0 p-0 select-none bg-[#09090b] text-zinc-100">
+
+    <!-- TOP NAV -->
+    <header class="w-full h-16 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between z-30 flex-shrink-0">
+        <!-- Left: back + contact info -->
+        <div class="flex items-center gap-3">
+            <button onclick="window.location.href='dashbord.html'"
+                class="icon-hover p-2 border border-zinc-800 hover:border-zinc-700 bg-zinc-900/60 rounded-lg transition-all cursor-pointer flex items-center justify-center">
+                <i data-lucide="arrow-left" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+            <div id="contact-avatar"
+                class="w-9 h-9 rounded-full border border-zinc-700 bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+            </div>
+            <div class="min-w-0">
+                <p id="contact-name" class="text-sm font-bold text-white truncate leading-tight">—</p>
+                <p id="contact-role" class="text-[10px] font-mono text-zinc-500 truncate"></p>
+            </div>
+        </div>
+
+        <!-- Right: actions + own avatar -->
+        <div class="flex items-center gap-2">
+            <button id="btn-call"
+                class="icon-hover hidden sm:flex p-2 border border-zinc-800 hover:border-emerald-800 hover:bg-emerald-950/30 rounded-lg transition-all cursor-pointer items-center justify-center"
+                title="Voice Call">
+                <i data-lucide="phone" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+            <button id="btn-video"
+                class="icon-hover hidden sm:flex p-2 border border-zinc-800 hover:border-blue-800 hover:bg-blue-950/30 rounded-lg transition-all cursor-pointer items-center justify-center"
+                title="Video Call">
+                <i data-lucide="video" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+            <button onclick="toggleInfoPanel()"
+                class="icon-hover p-2 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                title="Contact Info">
+                <i data-lucide="info" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+            <div class="relative w-9 h-9 rounded-full border border-zinc-700 p-[2px] bg-zinc-800 ml-1">
+                <div id="nav-avatar" class="w-full h-full rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-zinc-700"></div>
+                <div class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN: split layout — chat | info panel -->
+    <main class="flex-1 w-full flex overflow-hidden min-h-0 relative">
+
+        <!-- Background grid -->
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1f1f23_1px,transparent_1px),linear-gradient(to_bottom,#1f1f23_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.03] pointer-events-none z-0"></div>
+
+        <!-- CHAT COLUMN -->
+        <section class="flex-1 flex flex-col min-w-0 z-10 relative">
+
+            <!-- Messages area -->
+            <div id="messages-area"
+                class="flex-1 overflow-y-auto custom-scroll px-4 sm:px-6 py-5 space-y-4">
+
+                <!-- Date separator -->
+                <div class="flex items-center gap-3 my-2">
+                    <div class="flex-1 h-px bg-zinc-800/60"></div>
+                    <span class="text-[9px] font-mono text-zinc-600 uppercase tracking-widest">Today</span>
+                    <div class="flex-1 h-px bg-zinc-800/60"></div>
+                </div>
+
+                <!-- Encryption notice -->
+                <div class="flex justify-center">
+                    <div class="flex items-center gap-1.5 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-1.5">
+                        <i data-lucide="lock" class="w-3 h-3 text-zinc-600"></i>
+                        <span class="text-[10px] font-mono text-zinc-600">End-to-end encrypted channel established</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Typing indicator (hidden by default) -->
+            <div id="typing-indicator" class="hidden px-4 sm:px-6 pb-2 flex items-center gap-2">
+                <div id="typing-avatar"
+                    class="w-6 h-6 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center text-[8px] font-bold text-zinc-400 flex-shrink-0">
+                </div>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-bl-sm px-3 py-2 flex gap-1 items-center">
+                    <span class="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block"></span>
+                    <span class="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block"></span>
+                    <span class="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block"></span>
+                </div>
+            </div>
+
+            <!-- Input bar -->
+            <div class="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 py-3">
+                <div class="flex items-end gap-2">
+                    <!-- Emoji / attachment buttons -->
+                    <button class="icon-hover flex-shrink-0 p-2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer" title="Attach file">
+                        <i data-lucide="paperclip" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Text input -->
+                    <div class="flex-1 relative">
+                        <textarea id="chat-input" rows="1"
+                            placeholder="Send a message…"
+                            onkeydown="handleInputKey(event)"
+                            oninput="autoGrow(this)"
+                            class="w-full bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-all leading-relaxed custom-scroll"></textarea>
+                    </div>
+
+                    <!-- Emoji picker shortcut -->
+                    <button class="icon-hover flex-shrink-0 p-2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer" title="Emoji">
+                        <i data-lucide="smile" class="w-4 h-4"></i>
+                    </button>
+
+                    <!-- Send -->
+                    <button id="send-btn" onclick="sendMessage()"
+                        class="flex-shrink-0 w-9 h-9 bg-white hover:bg-zinc-200 text-black rounded-xl flex items-center justify-center transition-colors cursor-pointer">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <p class="text-[9px] font-mono text-zinc-700 mt-1.5 text-right">Enter to send · Shift+Enter for new line</p>
+            </div>
+        </section>
+
+        <!-- CONTACT INFO PANEL (slides in from right) -->
+        <aside id="info-panel"
+            class="w-72 flex-shrink-0 border-l border-zinc-800 bg-zinc-950 flex flex-col overflow-hidden
+                   transition-all duration-300 ease-in-out
+                   absolute right-0 top-0 bottom-0 translate-x-full z-20 sm:relative sm:translate-x-0 sm:hidden">
+
+            <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-900 flex-shrink-0">
+                <h3 class="heading-font text-[10px] font-bold uppercase tracking-widest text-white">Contact Info</h3>
+                <button onclick="toggleInfoPanel()" class="p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto custom-scroll px-5 py-5 space-y-5">
+                <!-- Avatar + name -->
+                <div class="flex flex-col items-center gap-3 pb-5 border-b border-zinc-900">
+                    <div id="panel-avatar"
+                        class="w-16 h-16 rounded-full border-2 border-zinc-700 bg-zinc-800 flex items-center justify-center text-xl font-bold text-white">
+                    </div>
+                    <div class="text-center">
+                        <p id="panel-name" class="text-sm font-bold text-white">—</p>
+                        <p id="panel-role" class="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5"></p>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-1">
+                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span class="text-[10px] font-mono text-zinc-400">Online</span>
+                    </div>
+                </div>
+
+                <!-- Shared media placeholder -->
+                <div class="space-y-2">
+                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Shared Media</p>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <div class="aspect-square rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                            <i data-lucide="image" class="w-4 h-4 text-zinc-700"></i>
+                        </div>
+                        <div class="aspect-square rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                            <i data-lucide="image" class="w-4 h-4 text-zinc-700"></i>
+                        </div>
+                        <div class="aspect-square rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                            <i data-lucide="plus" class="w-4 h-4 text-zinc-700"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="space-y-2">
+                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Actions</p>
+                    <button class="w-full flex items-center gap-2.5 p-2.5 bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer group">
+                        <i data-lucide="phone" class="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors"></i>
+                        <span class="text-xs text-zinc-400 group-hover:text-white transition-colors">Voice Call</span>
+                    </button>
+                    <button class="w-full flex items-center gap-2.5 p-2.5 bg-zinc-900/40 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors cursor-pointer group">
+                        <i data-lucide="video" class="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors"></i>
+                        <span class="text-xs text-zinc-400 group-hover:text-white transition-colors">Video Call</span>
+                    </button>
+                    <button class="w-full flex items-center gap-2.5 p-2.5 bg-zinc-900/40 border border-zinc-800 hover:border-red-900/40 hover:bg-red-950/20 rounded-lg transition-colors cursor-pointer group">
+                        <i data-lucide="ban" class="w-3.5 h-3.5 text-zinc-500 group-hover:text-red-400 transition-colors"></i>
+                        <span class="text-xs text-zinc-400 group-hover:text-red-400 transition-colors">Block User</span>
+                    </button>
+                </div>
+
+                <!-- Encryption status -->
+                <div class="space-y-2 pt-2 border-t border-zinc-900">
+                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Security</p>
+                    <div class="p-3 bg-zinc-900/30 border border-zinc-900 rounded-lg flex items-center gap-2.5">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"></i>
+                        <div>
+                            <p class="text-[11px] font-bold text-zinc-300">E2E Encrypted</p>
+                            <p class="text-[9px] font-mono text-zinc-600">AES-256 channel</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Remove contact -->
+            <div class="px-5 py-4 border-t border-zinc-900 flex-shrink-0">
+                <button onclick="window.location.href='dashbord.html'"
+                    class="w-full border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700 text-xs py-2.5 uppercase tracking-wider cursor-pointer transition-colors rounded flex items-center justify-center gap-1.5">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Contacts
+                </button>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // ── Avatar gradients (same as dashboard) ─────────────────────
+        const AVATAR_GRADIENTS = {
+            avatar1: { from: '#a855f7', to: '#ec4899' },
+            avatar2: { from: '#3b82f6', to: '#06b6d4' },
+            avatar3: { from: '#22c55e', to: '#10b981' },
+            avatar4: { from: '#f97316', to: '#ef4444' },
+        };
+
+        // ── URL params ────────────────────────────────────────────────
+        const params   = new URLSearchParams(window.location.search);
+        const cName    = params.get('name')     || 'Unknown';
+        const cRole    = params.get('role')     || '';
+        const cInit    = params.get('initials') || cName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+        // ── Populate contact header & panel ───────────────────────────
+        document.getElementById('contact-name').textContent = cName;
+        document.getElementById('contact-role').textContent = cRole;
+        document.getElementById('panel-name').textContent   = cName;
+        document.getElementById('panel-role').textContent   = cRole;
+
+        ['contact-avatar', 'panel-avatar', 'typing-avatar'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = cInit;
+        });
+
+        // ── Load own profile ──────────────────────────────────────────
+        function loadProfile() {
+            const raw = localStorage.getItem('userProfile');
+            if (!raw) return;
+            const p = JSON.parse(raw);
+            const grad = AVATAR_GRADIENTS[p.avatar] || { from: '#52525b', to: '#27272a' };
+            const initials = p.displayName
+                ? p.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                : '??';
+            const navAvatar = document.getElementById('nav-avatar');
+            navAvatar.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
+            navAvatar.textContent = initials;
+        }
+        loadProfile();
+
+        // ── Info panel toggle ─────────────────────────────────────────
+        let infoPanelOpen = false;
+        function toggleInfoPanel() {
+            const panel = document.getElementById('info-panel');
+            infoPanelOpen = !infoPanelOpen;
+            if (infoPanelOpen) {
+                panel.classList.remove('translate-x-full', 'hidden');
+                panel.classList.add('sm:flex');
+            } else {
+                panel.classList.add('translate-x-full');
+                setTimeout(() => panel.classList.remove('sm:flex'), 300);
+            }
+        }
+
+        // ── Simulated replies ─────────────────────────────────────────
+        const AUTO_REPLIES = [
+            'Copy that. Proceeding with the protocol.',
+            'Signal received. Stand by.',
+            'Acknowledged. Keeping the channel open.',
+            'Confirmed. What's the next vector?',
+            'Roger. Encrypting response now.',
+            'Understood. Running verification.',
+            'Affirmative. Locked in.',
+            'Received. Awaiting further instructions.',
+        ];
+        let replyIndex = 0;
+
+        // ── Message rendering ─────────────────────────────────────────
+        function now() {
+            return new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function appendMessage(text, side) {
+            const area = document.getElementById('messages-area');
+            const isMe = side === 'me';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex items-end gap-2 msg-bubble ${isMe ? 'justify-end' : 'justify-start'}`;
+
+            if (!isMe) {
+                const av = document.createElement('div');
+                av.className = 'w-7 h-7 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center text-[9px] font-bold text-zinc-400 flex-shrink-0 mb-0.5';
+                av.textContent = cInit;
+                wrapper.appendChild(av);
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = isMe
+                ? 'max-w-[70%] bg-white text-zinc-900 rounded-2xl rounded-br-sm px-4 py-2.5 text-sm leading-relaxed shadow-md'
+                : 'max-w-[70%] bg-zinc-900 border border-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm px-4 py-2.5 text-sm leading-relaxed';
+
+            const msgText = document.createElement('p');
+            msgText.textContent = text;
+
+            const ts = document.createElement('span');
+            ts.className = `block text-[9px] mt-1 font-mono ${isMe ? 'text-zinc-500 text-right' : 'text-zinc-600'}`;
+            ts.textContent = now();
+
+            bubble.appendChild(msgText);
+            bubble.appendChild(ts);
+            wrapper.appendChild(bubble);
+            area.appendChild(wrapper);
+
+            // scroll to bottom
+            area.scrollTop = area.scrollHeight;
+        }
+
+        // ── Typing indicator ──────────────────────────────────────────
+        let typingTimer = null;
+        function showTyping() {
+            const ti = document.getElementById('typing-indicator');
+            ti.classList.remove('hidden');
+            ti.classList.add('flex');
+            document.getElementById('messages-area').scrollTop = document.getElementById('messages-area').scrollHeight;
+        }
+        function hideTyping() {
+            const ti = document.getElementById('typing-indicator');
+            ti.classList.add('hidden');
+            ti.classList.remove('flex');
+        }
+
+        // ── Send message ──────────────────────────────────────────────
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const text  = input.value.trim();
+            if (!text) return;
+
+            appendMessage(text, 'me');
+            input.value = '';
+            autoGrow(input);
+
+            // Simulate other user typing then replying
+            clearTimeout(typingTimer);
+            showTyping();
+            typingTimer = setTimeout(() => {
+                hideTyping();
+                const reply = AUTO_REPLIES[replyIndex % AUTO_REPLIES.length];
+                replyIndex++;
+                appendMessage(reply, 'other');
+            }, 1200 + Math.random() * 800);
+        }
+
+        // ── Keyboard shortcut ─────────────────────────────────────────
+        function handleInputKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // ── Auto-grow textarea ────────────────────────────────────────
+        function autoGrow(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        // ── Init lucide icons ─────────────────────────────────────────
+        lucide.createIcons();
+    </script>
+</body>
+</html>

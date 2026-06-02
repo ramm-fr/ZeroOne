@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeroOne</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Syne & Space Grotesk - High-end Editorial Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0c0c0c;
+            overflow: hidden; /* Guarantees no scrolling */
+        }
+        .heading-font {
+            font-family: 'Syne', sans-serif;
+        }
+
+        /* Subtle icon pulse on input focus */
+        .input-box:focus-within .lucide {
+            transform: scale(1.15);
+            color: #ffffff;
+        }
+        .lucide {
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
+        }
+
+        /* Line animation for the right side panel */
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        .scan-line {
+            animation: scan 6s linear infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen max-h-screen text-zinc-100 flex items-center justify-center m-0 p-0 select-none">
+
+    <!-- Primary Layout Block (Fixed to Window Viewport) -->
+    <div class="w-full h-full flex flex-row overflow-hidden">
+        
+        <!-- LEFT PANEL: Strict Typographic Login (Takes 45% Width) -->
+        <div class="w-full md:w-[45%] xl:w-[40%] h-full bg-[#111111] p-10 lg:p-14 flex flex-col justify-between border-r border-zinc-800/80 z-10 overflow-hidden">
+            
+            <!-- Brand Mark -->
+            <div class="flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="heading-font text-xl font-extrabold tracking-tighter text-white">ZeroOne</span>
+                </div>
+                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+            </div>
+
+            <!-- Main Interface Core -->
+            <div class="w-full max-w-sm mx-auto my-auto space-y-8">
+                <div class="space-y-2">
+                    <h1 id="form-title" class="heading-font text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-none">
+                        ENTER PLATFORM
+                    </h1>
+                    <p id="form-subtitle" class="text-[11px] tracking-wide text-zinc-500 uppercase">Provide credentials or authorization node</p>
+                </div>
+
+                <!-- Mode Toggle -->
+                <div class="flex items-center justify-center gap-2 text-[10px] tracking-widest text-zinc-500 uppercase">
+                    <button id="login-mode-btn" onclick="setMode('login')" class="text-white hover:text-zinc-300 transition-colors cursor-pointer">Login</button>
+                    <div class="w-[1px] h-3 bg-zinc-700"></div>
+                    <button id="signup-mode-btn" onclick="setMode('signup')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Sign Up</button>
+                    <div class="w-[1px] h-3 bg-zinc-700"></div>
+                    <button id="forgot-mode-btn" onclick="setMode('forgot')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Forgot</button>
+                </div>
+
+                <!-- Third-Party Single Sign-On (SSO) Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button class="group flex items-center justify-between border border-zinc-800 hover:border-zinc-400 bg-zinc-900/30 h-10 px-4 text-xs transition-all duration-200 cursor-pointer">
+                        <span class="text-zinc-400 group-hover:text-white transition-colors">Google</span>
+                        <i data-lucide="chrome" class="w-3.5 h-3.5 text-zinc-600 group-hover:text-white group-hover:rotate-12"></i>
+                    </button>
+                    <button class="group flex items-center justify-between border border-zinc-800 hover:border-zinc-400 bg-zinc-900/30 h-10 px-4 text-xs transition-all duration-200 cursor-pointer">
+                        <span class="text-zinc-400 group-hover:text-white transition-colors">Twitter</span>
+                        <i data-lucide="twitter" class="w-3.5 h-3.5 text-zinc-600 group-hover:text-white group-hover:-translate-y-0.5"></i>
+                    </button>
+                </div>
+
+                <!-- Typographic Divider -->
+                <div class="flex items-center justify-center gap-4 text-[10px] tracking-widest text-zinc-600 uppercase">
+                    <div class="h-[1px] flex-1 bg-zinc-800/60"></div>
+                    <span>OR SYSTEM KEY</span>
+                    <div class="h-[1px] flex-1 bg-zinc-800/60"></div>
+                </div>
+
+                <!-- Form Inputs -->
+                <form id="auth-form" class="space-y-5" onsubmit="handleAuth(event)">
+                    <!-- Key Input 1 -->
+                    <div class="space-y-1.5 group">
+                        <div class="flex justify-between text-[10px] uppercase tracking-widest text-zinc-500">
+                            <span>User Core Identifier</span>
+                        </div>
+                        <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-1.5">
+                            <input type="email" id="email" required autocomplete="off"
+                                class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8 tracking-wide"
+                                placeholder="root@kronos.network">
+                            <i data-lucide="hash" class="absolute right-0 w-3.5 h-3.5 text-zinc-600"></i>
+                        </div>
+                    </div>
+
+                    <!-- Key Input 2 -->
+                    <div id="password-field" class="space-y-1.5 group">
+                        <div class="flex justify-between text-[10px] uppercase tracking-widest text-zinc-500">
+                            <span>Pass Phrase</span>
+                        </div>
+                        <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-1.5">
+                            <input type="password" id="password" required
+                                class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8 tracking-widest"
+                                placeholder="••••••••••••">
+                            <i data-lucide="shield-alert" class="absolute right-0 w-3.5 h-3.5 text-zinc-600"></i>
+                        </div>
+                    </div>
+
+                    <!-- Action Trigger -->
+                    <div class="pt-2">
+                        <button type="submit" id="submit-btn"
+                            class="group w-full bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-[0.2em] uppercase h-11 transition-all duration-300 flex items-center justify-between px-5 cursor-pointer">
+                            <span id="submit-text">Execute Connection</span>
+                            <i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Lower Layout Metadata -->
+            <div class="flex items-center justify-between text-[10px] font-mono text-zinc-600 tracking-wider flex-shrink-0">
+                <span>LOC: [NODE_09]</span>
+                <span>SECURE COMMS // LIVE</span>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Abstract Geometric Line Array (Takes Remaining Width) -->
+        <div class="hidden md:flex flex-1 h-full bg-[#0a0a0a] relative items-center justify-center overflow-hidden">
+            
+            <!-- Laser Scan Line Effect -->
+            <div class="scan-line absolute left-0 right-0 h-[2px] bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.08)_50%,transparent_100%)] z-10"></div>
+
+            <!-- Structural Linear Wire Grid Matrix -->
+            <div class="absolute inset-y-0 w-[80%] flex justify-between opacity-10">
+                <div class="w-[1px] h-full bg-white"></div>
+                <div class="w-[1px] h-full bg-white"></div>
+                <div class="w-[1px] h-full bg-white"></div>
+                <div class="w-[1px] h-full bg-white"></div>
+                <div class="w-[1px] h-full bg-white"></div>
+            </div>
+            
+            <!-- Central Geometric Focal Point -->
+            <div class="relative flex items-center justify-center w-96 h-96">
+                <!-- Concentric Static Thin Rings -->
+                <div class="absolute w-full h-full border border-zinc-900 rounded-full flex items-center justify-center">
+                    <div class="w-[75%] h-[75%] border border-zinc-900 rounded-full flex items-center justify-center">
+                        <div class="w-[50%] h-[50%] border border-zinc-900/60 rounded-full flex items-center justify-center">
+                            <!-- Animated Pulse Core Center Icon -->
+                            <i data-lucide="fingerprint" class="w-8 h-8 text-zinc-700 animate-pulse"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Crosshair Accent Marks -->
+                <div class="absolute top-0 bottom-0 left-1/2 w-[1px] bg-zinc-900/40"></div>
+                <div class="absolute left-0 right-0 top-1/2 h-[1px] bg-zinc-900/40"></div>
+            </div>
+
+            <!-- Ambient Tech Spec Overlays -->
+            <div class="absolute bottom-10 right-10 flex flex-col text-right space-y-1">
+                <span class="text-[10px] font-mono text-zinc-700 uppercase tracking-widest">System Architecture v4.0</span>
+                <span class="text-[9px] font-mono text-zinc-800">MATRIX SHIELD PROTOCOL // ENCRYPTED</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Initialize Lucide Icons and Supabase Auth -->
+    <script>
+        lucide.createIcons();
+
+        // Supabase Configuration - Replace with your actual credentials
+        const SUPABASE_URL = 'https://belblvybuefysawyoocv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGJsdnlidWVmeXNhd3lvb2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNTgyMDAsImV4cCI6MjA5NTkzNDIwMH0.F7udCTa8bbmSiNg0Qx_xMZX7mrl-JifU44SSKvRQSk4';
+
+        // Initialize Supabase client
+        let supabaseClient;
+        
+        function initSupabase() {
+            try {
+                console.log('window.supabase:', window.supabase);
+                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    console.log('Supabase client initialized successfully:', supabaseClient);
+                    console.log('Supabase auth available:', supabaseClient.auth);
+                } else {
+                    console.error('Supabase not loaded yet. window.supabase:', window.supabase);
+                }
+            } catch (error) {
+                console.error('Supabase initialization failed:', error);
+            }
+        }
+
+        // Initialize when script loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSupabase);
+        } else {
+            initSupabase();
+        }
+
+        // Current mode: 'login' or 'signup'
+        let currentMode = 'login';
+
+        function setMode(mode) {
+            currentMode = mode;
+            const loginBtn = document.getElementById('login-mode-btn');
+            const signupBtn = document.getElementById('signup-mode-btn');
+            const forgotBtn = document.getElementById('forgot-mode-btn');
+            const title = document.getElementById('form-title');
+            const subtitle = document.getElementById('form-subtitle');
+            const submitText = document.getElementById('submit-text');
+            const passwordField = document.getElementById('password-field');
+            const passwordInput = document.getElementById('password');
+
+            // Reset all buttons to default
+            loginBtn.classList.remove('text-white');
+            loginBtn.classList.add('text-zinc-500');
+            signupBtn.classList.remove('text-white');
+            signupBtn.classList.add('text-zinc-500');
+            forgotBtn.classList.remove('text-white');
+            forgotBtn.classList.add('text-zinc-500');
+
+            if (mode === 'login') {
+                loginBtn.classList.remove('text-zinc-500');
+                loginBtn.classList.add('text-white');
+                title.textContent = 'ENTER PLATFORM';
+                subtitle.textContent = 'Provide credentials or authorization node';
+                submitText.textContent = 'Execute Connection';
+                passwordField.style.display = 'block';
+                passwordInput.required = true;
+            } else if (mode === 'signup') {
+                signupBtn.classList.remove('text-zinc-500');
+                signupBtn.classList.add('text-white');
+                title.textContent = 'CREATE IDENTITY';
+                subtitle.textContent = 'Establish new authorization node';
+                submitText.textContent = 'Initialize Node';
+                passwordField.style.display = 'block';
+                passwordInput.required = true;
+            } else if (mode === 'forgot') {
+                forgotBtn.classList.remove('text-zinc-500');
+                forgotBtn.classList.add('text-white');
+                title.textContent = 'RESET CREDENTIALS';
+                subtitle.textContent = 'Enter email to receive recovery link';
+                submitText.textContent = 'Send Recovery';
+                passwordField.style.display = 'none';
+                passwordInput.required = false;
+            }
+        }
+
+        async function handleAuth(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitButton = document.getElementById('submit-btn');
+            
+            // Disable button and show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span>Processing...</span>';
+
+            try {
+                // Ensure Supabase is initialized
+                if (!supabaseClient) {
+                    initSupabase();
+                    if (!supabaseClient) {
+                        throw new Error('Supabase client not initialized. Please refresh the page.');
+                    }
+                }
+
+                if (currentMode === 'login') {
+                    await handleLoginAuth(email, password, submitButton);
+                } else if (currentMode === 'signup') {
+                    await handleSignupAuth(email, password, submitButton);
+                } else if (currentMode === 'forgot') {
+                    await handleForgotPassword(email, submitButton);
+                }
+
+            } catch (error) {
+                console.error('Auth error:', error);
+                alert(error.message || 'Authentication failed. Please check your credentials.');
+                
+                // Re-enable button
+                submitButton.disabled = false;
+                let submitText = 'Execute Connection';
+                if (currentMode === 'signup') submitText = 'Initialize Node';
+                if (currentMode === 'forgot') submitText = 'Send Recovery';
+                submitButton.innerHTML = `<span>${submitText}</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>`;
+                lucide.createIcons();
+            }
+        }
+
+        async function handleLoginAuth(email, password, submitButton) {
+            console.log('Attempting login with:', email);
+            console.log('Supabase client:', supabaseClient);
+
+            // Sign in with Supabase
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            // Check if user has profile setup
+            const { data: profile } = await supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .single();
+
+            // Redirect to profile setup if no profile exists, otherwise to dashboard
+            if (!profile) {
+                window.location.href = 'profile-setup.html';
+            } else {
+                window.location.href = 'dashbord.html';
+            }
+        }
+
+        async function handleSignupAuth(email, password, submitButton) {
+            console.log('Attempting signup with:', email);
+
+            // Sign up with Supabase
+            const { data, error } = await supabaseClient.auth.signUp({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            // Check if email confirmation is required
+            if (data.user && !data.session) {
+                alert('Account created! Please check your email to confirm your account.');
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<span>Initialize Node</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>';
+                lucide.createIcons();
+                return;
+            }
+
+            // If auto-confirmed, redirect to profile setup
+            if (data.session) {
+                window.location.href = 'profile-setup.html';
+            }
+        }
+
+        async function handleForgotPassword(email, submitButton) {
+            console.log('Attempting password reset for:', email);
+
+            // Send password reset email with Supabase
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/profile-setup.html`
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            alert('Password reset link sent! Please check your email to reset your password.');
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<span>Send Recovery</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>';
+            lucide.createIcons();
+            
+            // Switch back to login mode
+            setMode('login');
+        }
+
+        // Check if user is already logged in
+        async function checkSession() {
+            try {
+                if (!supabaseClient) return;
+
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                
+                if (session) {
+                    // User is logged in, check profile
+                    const { data: profile } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (!profile) {
+                        window.location.href = 'profile-setup.html';
+                    } else {
+                        window.location.href = 'dashbord.html';
+                    }
+                }
+            } catch (error) {
+                console.error('Session check error:', error);
+            }
+        }
+
+        // Run session check on page load
+        checkSession();
+    </script>
+</body>
+</html>

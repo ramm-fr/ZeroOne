@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comms Terminal</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Space Grotesk', sans-serif; background-color: #09090b; overflow: hidden; }
+        .heading-font { font-family: 'Syne', sans-serif; }
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+        .lucide { transition: transform 0.2s cubic-bezier(0.16,1,0.3,1), color 0.2s ease; }
+        .icon-hover:hover .lucide { transform: scale(1.1); color: #ffffff; }
+        .rotate-hover:hover .lucide { transform: rotate(45deg); color: #ffffff; }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col m-0 p-0 select-none bg-[#09090b] text-zinc-100">
+
+    <!-- TOP NAV -->
+    <header class="w-full h-16 border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md px-6 flex items-center justify-between z-30 flex-shrink-0">
+        <div class="flex items-center gap-3">
+            <span class="heading-font text-lg font-extrabold tracking-tighter text-white">Ø1</span>
+            <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest bg-zinc-900 px-2 py-0.5 border border-zinc-800 rounded">LIVE</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="nav-username" class="text-xs font-mono text-zinc-400 hidden sm:inline">operator.root</span>
+            <div class="relative w-9 h-9 rounded-full border border-zinc-700 p-[2px] bg-zinc-800">
+                <div id="nav-avatar" class="w-full h-full rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-zinc-700"></div>
+                <div class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-zinc-950"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="flex-1 w-full p-4 md:p-6 flex flex-col justify-between overflow-hidden relative min-h-0">
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#1f1f23_1px,transparent_1px),linear-gradient(to_bottom,#1f1f23_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-[0.03] pointer-events-none z-0"></div>
+
+        <!-- CONTACTS PANEL -->
+        <section class="w-full h-full border border-zinc-800 bg-zinc-950/40 rounded-xl overflow-hidden flex flex-col min-h-0 z-10 shadow-2xl">
+            <div class="p-4 bg-zinc-950 border-b border-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-shrink-0">
+                <div>
+                    <h2 class="text-sm font-bold text-white uppercase tracking-wider">Saved Identities</h2>
+                    <p class="text-[11px] text-zinc-500">Secure directory index of encrypted nodes</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <input type="text" id="search-input" onkeyup="filterContacts()"
+                            class="bg-zinc-900/60 border border-zinc-800 rounded-lg py-1.5 pl-8 pr-4 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 transition-all w-48 sm:w-56"
+                            placeholder="Filter names...">
+                        <i data-lucide="search" class="absolute left-2.5 top-2 w-3.5 h-3.5 text-zinc-600"></i>
+                    </div>
+                    <button onclick="toggleAddModal(true)" class="icon-hover flex items-center justify-center bg-white text-black p-1.5 rounded-lg transition-colors cursor-pointer">
+                        <i data-lucide="plus" class="w-3.5 h-3.5 text-black"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="contacts-container" class="flex-1 overflow-y-auto custom-scroll divide-y divide-zinc-900/60">
+                <!-- EMPTY / INVITE STATE -->
+                <div id="empty-state" class="flex flex-col items-center justify-center h-full gap-4 text-center px-8">
+                    <div class="w-14 h-14 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                        <i data-lucide="user-plus" class="w-6 h-6 text-zinc-500"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <p class="text-sm font-bold text-white tracking-wide">Invite someone</p>
+                        <p class="text-[11px] text-zinc-500 leading-relaxed">Share your UID with others or<br>search by their 6-digit UID to connect.</p>
+                    </div>
+                    <div id="invite-uid-chip" class="hidden items-center gap-2 bg-zinc-900/60 border border-zinc-800 rounded-lg px-4 py-2 cursor-pointer hover:border-zinc-600 transition-colors group" onclick="copyUID()" title="Click to copy">
+                        <i data-lucide="hash" class="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors"></i>
+                        <span id="invite-uid-value" class="text-sm font-mono font-bold text-zinc-300 group-hover:text-white tracking-widest transition-colors"></span>
+                        <i data-lucide="copy" class="w-3 h-3 text-zinc-600 group-hover:text-white transition-colors"></i>
+                    </div>
+                    <p id="invite-copy-msg" class="hidden text-[10px] text-emerald-400 font-mono">UID copied!</p>
+                    <button onclick="toggleAddModal(true)" class="flex items-center gap-2 bg-white text-black text-xs font-bold px-5 py-2.5 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                        Search by UID
+                    </button>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="w-full flex items-center justify-between pt-4 z-20 flex-shrink-0">
+            <button onclick="toggleSettingsModal(true)"
+                class="rotate-hover p-2.5 border border-zinc-800 hover:border-zinc-700 bg-zinc-950/80 rounded-xl transition-all cursor-pointer flex items-center justify-center shadow-lg">
+                <i data-lucide="settings" class="w-4 h-4 text-zinc-400"></i>
+            </button>
+            <div class="text-[10px] font-mono text-zinc-600 tracking-wider">SECURE ENV // SYS_V4.0</div>
+        </footer>
+    </main>
+
+    <!-- SETTINGS / PROFILE DRAWER -->
+    <div id="settings-drawer" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end transition-opacity duration-200 pointer-events-none opacity-0" onclick="handleDrawerBackdrop(event)">
+        <div class="w-full max-w-xs h-full bg-zinc-950 border-l border-zinc-800 flex flex-col transform translate-x-full transition-transform duration-300">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-900 flex-shrink-0">
+                <h3 class="heading-font text-xs font-bold uppercase tracking-widest text-white">Identity Node</h3>
+                <button onclick="toggleSettingsModal(false)" class="p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll px-5 py-5 space-y-5">
+                <div class="flex flex-col items-center gap-3 pb-5 border-b border-zinc-900">
+                    <div id="drawer-avatar" class="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-white border-2 border-zinc-700 bg-zinc-800"></div>
+                    <div class="text-center">
+                        <p id="drawer-name" class="text-sm font-bold text-white">—</p>
+                        <p id="drawer-gender" class="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5"></p>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-1.5">
+                        <i data-lucide="hash" class="w-3 h-3 text-zinc-500"></i>
+                        <span id="drawer-uid" class="text-xs font-mono text-zinc-300 tracking-widest">------</span>
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Bio</p>
+                    <p id="drawer-bio" class="text-xs text-zinc-400 leading-relaxed">No bio provided.</p>
+                </div>
+                <div class="space-y-2">
+                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Social Links</p>
+                    <div id="drawer-socials" class="space-y-2"></div>
+                </div>
+                <div class="space-y-2 pt-2 border-t border-zinc-900">
+                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">System</p>
+                    <div class="p-3 bg-zinc-900/30 border border-zinc-900 rounded-lg flex justify-between items-center text-xs">
+                        <span class="text-zinc-400">Data Synchronization</span>
+                        <input type="checkbox" checked class="w-3.5 h-3.5 accent-zinc-500">
+                    </div>
+                    <div id="drawer-setup-at" class="text-[10px] font-mono text-zinc-600 text-right"></div>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-zinc-900 flex-shrink-0 space-y-2">
+                <button onclick="toggleSettingsModal(false)" class="w-full bg-white text-black text-xs font-bold py-2.5 tracking-wider uppercase cursor-pointer hover:bg-zinc-200 transition-colors rounded">Close</button>
+                <button onclick="clearProfileAndGoSetup()" class="w-full border border-zinc-800 text-zinc-500 hover:text-red-400 hover:border-red-900/50 text-xs py-2 uppercase cursor-pointer transition-colors rounded flex items-center justify-center gap-1.5">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Reset Identity
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UID SEARCH MODAL -->
+    <div id="uid-search-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center transition-opacity duration-200 pointer-events-none opacity-0" onclick="handleModalBackdropClick(event)">
+        <div class="w-full max-w-sm bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl transform scale-95 transition-transform duration-200 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-900">
+                <div>
+                    <h3 class="heading-font text-xs font-bold uppercase tracking-widest text-white">Search User</h3>
+                    <p class="text-[10px] text-zinc-500 mt-0.5">Enter a 6-digit UID to locate an identity</p>
+                </div>
+                <button onclick="toggleAddModal(false)" class="p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <div class="px-5 pt-5 pb-4 space-y-4">
+                <div>
+                    <div class="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2.5 focus-within:border-zinc-600 transition-colors">
+                        <i data-lucide="hash" class="w-3.5 h-3.5 text-zinc-500 flex-shrink-0"></i>
+                        <input type="text" id="uid-input" maxlength="6"
+                            oninput="onUidInput(this)"
+                            onkeydown="if(event.key==='Enter') searchUID()"
+                            placeholder="000000"
+                            class="flex-1 bg-transparent text-sm font-mono text-white placeholder-zinc-700 focus:outline-none tracking-[0.3em] w-full">
+                        <span id="uid-counter" class="text-[10px] font-mono text-zinc-600 flex-shrink-0">0/6</span>
+                    </div>
+                    <div class="flex gap-1.5 mt-2 justify-center" id="uid-dots">
+                        <div class="uid-dot w-1.5 h-1.5 rounded-full bg-zinc-800 transition-colors duration-150"></div>
+                        <div class="uid-dot w-1.5 h-1.5 rounded-full bg-zinc-800 transition-colors duration-150"></div>
+                        <div class="uid-dot w-1.5 h-1.5 rounded-full bg-zinc-800 transition-colors duration-150"></div>
+                        <div class="uid-dot w-1.5 h-1.5 rounded-full bg-zinc-800 transition-colors duration-150"></div>
+                        <div class="uid-dot w-1.5 h-1.5 rounded-full bg-zinc-800 transition-colors duration-150"></div>
+                        <div class="uid-dot w-1.5 h-1.5 rounded-full bg-zinc-800 transition-colors duration-150"></div>
+                    </div>
+                </div>
+                <div id="uid-result" class="hidden"></div>
+                <div id="uid-error" class="hidden flex items-center gap-2 text-[11px] text-red-400 bg-red-950/30 border border-red-900/40 rounded-lg px-3 py-2">
+                    <i data-lucide="alert-circle" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                    <span id="uid-error-text">No identity found for this UID.</span>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button onclick="toggleAddModal(false)" class="flex-1 border border-zinc-800 text-xs text-zinc-400 hover:text-white hover:border-zinc-700 py-2.5 rounded-lg transition-colors cursor-pointer">Cancel</button>
+                    <button onclick="searchUID()" class="flex-1 bg-white text-black text-xs font-bold py-2.5 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5">
+                        <i data-lucide="search" class="w-3.5 h-3.5"></i> Search
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Profile ───────────────────────────────────────────────────
+        const AVATAR_GRADIENTS = {
+            avatar1: { from: '#a855f7', to: '#ec4899' },
+            avatar2: { from: '#3b82f6', to: '#06b6d4' },
+            avatar3: { from: '#22c55e', to: '#10b981' },
+            avatar4: { from: '#f97316', to: '#ef4444' },
+        };
+
+        function loadProfile() {
+            const raw = localStorage.getItem('userProfile');
+            if (!raw) return;
+            const p = JSON.parse(raw);
+            const grad = AVATAR_GRADIENTS[p.avatar] || { from: '#52525b', to: '#27272a' };
+            const initials = p.displayName ? p.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
+
+            const navAvatar = document.getElementById('nav-avatar');
+            navAvatar.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
+            navAvatar.textContent = initials;
+            document.getElementById('nav-username').textContent = p.displayName.toLowerCase().replace(/\s+/g, '.');
+
+            const drawerAvatar = document.getElementById('drawer-avatar');
+            drawerAvatar.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
+            drawerAvatar.textContent = initials;
+            document.getElementById('drawer-name').textContent   = p.displayName || '—';
+            document.getElementById('drawer-gender').textContent = p.gender || '';
+            document.getElementById('drawer-uid').textContent    = p.uid || '------';
+            document.getElementById('drawer-bio').textContent    = p.bio || 'No bio provided.';
+
+            if (p.uid) {
+                document.getElementById('invite-uid-value').textContent = p.uid;
+                const chip = document.getElementById('invite-uid-chip');
+                chip.classList.remove('hidden');
+                chip.classList.add('flex');
+            }
+
+            const socialsEl = document.getElementById('drawer-socials');
+            const links = [
+                { key: 'twitter', icon: 'twitter' },
+                { key: 'linkedin', icon: 'linkedin' },
+                { key: 'github', icon: 'github' },
+            ];
+            const filled = links.filter(l => p.socialLinks?.[l.key]);
+            socialsEl.innerHTML = filled.length === 0
+                ? '<p class="text-[11px] text-zinc-600">No social links added.</p>'
+                : filled.map(l => `
+                    <a href="${p.socialLinks[l.key]}" target="_blank" rel="noopener"
+                       class="flex items-center gap-2.5 p-2 bg-zinc-900/40 border border-zinc-800 rounded-lg hover:border-zinc-700 transition-colors group">
+                        <i data-lucide="${l.icon}" class="w-3.5 h-3.5 text-zinc-500 group-hover:text-white transition-colors"></i>
+                        <span class="text-xs text-zinc-400 group-hover:text-white transition-colors truncate">${p.socialLinks[l.key]}</span>
+                    </a>`).join('');
+
+            if (p.setupAt) {
+                const d = new Date(p.setupAt);
+                document.getElementById('drawer-setup-at').textContent = 'Setup: ' + d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+            lucide.createIcons();
+        }
+
+        function copyUID() {
+            const uid = document.getElementById('invite-uid-value').textContent;
+            navigator.clipboard.writeText(uid).then(() => {
+                const msg = document.getElementById('invite-copy-msg');
+                msg.classList.remove('hidden');
+                setTimeout(() => msg.classList.add('hidden'), 2000);
+            });
+        }
+
+        function clearProfileAndGoSetup() {
+            if (confirm('Reset your identity? This will clear all saved profile data.')) {
+                localStorage.removeItem('userProfile');
+                window.location.href = 'profile-setup.html';
+            }
+        }
+
+        // ── Settings drawer ───────────────────────────────────────────
+        function toggleSettingsModal(open) {
+            const drawer = document.getElementById('settings-drawer');
+            const inner  = drawer.querySelector('div');
+            if (open) {
+                drawer.classList.remove('pointer-events-none', 'opacity-0');
+                inner.classList.remove('translate-x-full');
+            } else {
+                drawer.classList.add('opacity-0');
+                inner.classList.add('translate-x-full');
+                setTimeout(() => drawer.classList.add('pointer-events-none'), 300);
+            }
+        }
+
+        function handleDrawerBackdrop(e) {
+            if (e.target === document.getElementById('settings-drawer')) toggleSettingsModal(false);
+        }
+
+        // ── UID Modal ─────────────────────────────────────────────────
+        function toggleAddModal(open) {
+            const modal = document.getElementById('uid-search-modal');
+            const inner = modal.querySelector('div');
+            if (open) {
+                modal.classList.remove('pointer-events-none', 'opacity-0');
+                inner.classList.remove('scale-95');
+                setTimeout(() => document.getElementById('uid-input').focus(), 150);
+                resetUidModal();
+            } else {
+                modal.classList.add('opacity-0');
+                inner.classList.add('scale-95');
+                setTimeout(() => modal.classList.add('pointer-events-none'), 200);
+            }
+        }
+
+        function handleModalBackdropClick(e) {
+            if (e.target === document.getElementById('uid-search-modal')) toggleAddModal(false);
+        }
+
+        function resetUidModal() {
+            document.getElementById('uid-input').value = '';
+            document.getElementById('uid-counter').textContent = '0/6';
+            document.getElementById('uid-result').classList.add('hidden');
+            document.getElementById('uid-error').classList.add('hidden');
+            updateUidDots(0);
+        }
+
+        function onUidInput(input) {
+            input.value = input.value.replace(/\D/g, '');
+            const len = input.value.length;
+            document.getElementById('uid-counter').textContent = len + '/6';
+            updateUidDots(len);
+            document.getElementById('uid-result').classList.add('hidden');
+            document.getElementById('uid-error').classList.add('hidden');
+            if (len === 6) searchUID();
+        }
+
+        function updateUidDots(count) {
+            document.querySelectorAll('.uid-dot').forEach((dot, i) => {
+                dot.style.backgroundColor = i < count ? '#ffffff' : '';
+                dot.classList.toggle('bg-white', i < count);
+                dot.classList.toggle('bg-zinc-800', i >= count);
+            });
+        }
+
+        // ── UID Search ────────────────────────────────────────────────
+        const UID_DATABASE = {
+            '100001': { name: 'Aria Chen',   role: 'Network Analyst',     email: 'a.chen@kronos.net' },
+            '200034': { name: 'Marcus Veil', role: 'Threat Intelligence', email: 'm.veil@nexus.org'  },
+            '305512': { name: 'Sable Ortiz', role: 'Comms Engineer',      email: 's.ortiz@kronos.net'},
+            '412087': { name: 'Ryn Harker',  role: 'Cryptographer',       email: 'r.harker@void.io'  },
+            '500099': { name: 'Nova Ellis',  role: 'Systems Infiltrator', email: 'n.ellis@nexus.org' },
+        };
+
+        function searchUID() {
+            const uid = document.getElementById('uid-input').value.trim();
+            const resultEl = document.getElementById('uid-result');
+            const errorEl  = document.getElementById('uid-error');
+            resultEl.classList.add('hidden');
+            errorEl.classList.add('hidden');
+
+            if (uid.length !== 6) {
+                document.getElementById('uid-error-text').textContent = 'Please enter a full 6-digit UID.';
+                errorEl.classList.remove('hidden');
+                lucide.createIcons();
+                return;
+            }
+            const user = UID_DATABASE[uid];
+            if (!user) {
+                document.getElementById('uid-error-text').textContent = 'No identity found for UID #' + uid + '.';
+                errorEl.classList.remove('hidden');
+                lucide.createIcons();
+                return;
+            }
+            const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            resultEl.innerHTML = `
+                <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full border border-zinc-700 bg-zinc-900 flex items-center justify-center text-[10px] font-bold tracking-widest text-white flex-shrink-0">${initials}</div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-white truncate">${user.name}</p>
+                        <p class="text-[10px] text-zinc-500 font-mono truncate">${user.email}</p>
+                        <p class="text-[10px] text-zinc-400 truncate">${user.role}</p>
+                    </div>
+                    <span class="text-[9px] font-mono text-zinc-600 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded flex-shrink-0">#${uid}</span>
+                </div>
+                <button onclick="addContactFromUID('${uid}')" class="w-full mt-2 bg-white text-black text-xs font-bold py-2.5 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5">
+                    <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Add to Contacts
+                </button>`;
+            resultEl.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function addContactFromUID(uid) {
+            const user = UID_DATABASE[uid];
+            if (!user) return;
+            const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            const chatUrl = 'chatpage.html?type=contact&name=' + encodeURIComponent(user.name) + '&role=' + encodeURIComponent(user.role) + '&initials=' + encodeURIComponent(initials);
+
+            const container = document.getElementById('contacts-container');
+            const row = document.createElement('div');
+            row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/10 transition-colors';
+            row.setAttribute('data-name', user.name);
+            row.innerHTML = `
+                <div class="col-span-6 sm:col-span-5 flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center text-[10px] font-bold tracking-widest text-zinc-400">${initials}</div>
+                    <div class="truncate">
+                        <h4 class="text-xs font-bold text-white">${user.name}</h4>
+                        <span class="text-[10px] text-zinc-500 font-mono">${user.email}</span>
+                    </div>
+                </div>
+                <div class="col-span-3 sm:col-span-4 text-xs text-zinc-400">${user.role}</div>
+                <div class="col-span-3 sm:col-span-3 flex justify-end gap-3">
+                    <button class="icon-hover p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer" onclick="window.location.href='${chatUrl}'">
+                        <i data-lucide="message-square" class="w-4 h-4"></i>
+                    </button>
+                    <button class="icon-hover p-1 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer" onclick="deleteContact(this)">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>`;
+            container.appendChild(row);
+            document.getElementById('empty-state').style.display = 'none';
+            lucide.createIcons();
+            toggleAddModal(false);
+        }
+
+        function deleteContact(btn) {
+            btn.closest('.grid').remove();
+            const container = document.getElementById('contacts-container');
+            if (container.querySelectorAll('.grid').length === 0) {
+                document.getElementById('empty-state').style.display = 'flex';
+            }
+        }
+
+        function filterContacts() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('#contacts-container > div').forEach(row => {
+                if (row.id === 'empty-state') return;
+                const name = (row.getAttribute('data-name') || '').toLowerCase();
+                row.style.display = name.includes(query) ? 'grid' : 'none';
+            });
+        }
+
+        lucide.createIcons();
+        loadProfile();
+    </script>
+</body>
+</html>

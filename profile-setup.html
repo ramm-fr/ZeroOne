@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeroOne - Profile Setup</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Syne & Space Grotesk - High-end Editorial Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0c0c0c;
+            overflow: hidden;
+        }
+        .heading-font {
+            font-family: 'Syne', sans-serif;
+        }
+        .input-box:focus-within .lucide {
+            transform: scale(1.15);
+            color: #ffffff;
+        }
+        .lucide {
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
+        }
+        .avatar-option {
+            transition: all 0.2s ease;
+        }
+        .avatar-option:hover {
+            transform: scale(1.05);
+        }
+        .avatar-option.selected {
+            border-color: white;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="w-screen h-screen max-h-screen text-zinc-100 flex items-center justify-center m-0 p-0 select-none bg-[#0c0c0c]">
+
+    <div class="w-full max-w-5xl mx-auto h-full flex flex-col p-6 md:p-10">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6 flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <span class="heading-font text-xl font-extrabold tracking-tighter text-white">ZeroOne</span>
+            </div>
+            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col md:flex-row gap-6 overflow-hidden">
+            
+            <!-- Left Panel: Form -->
+            <div class="flex-1 bg-[#111111] rounded-2xl p-6 flex flex-col overflow-hidden">
+                <div class="space-y-2 mb-6">
+                    <h1 class="heading-font text-2xl font-extrabold tracking-tight text-white leading-none">
+                        PROFILE SETUP
+                    </h1>
+                    <p class="text-[10px] tracking-wide text-zinc-500 uppercase">Configure your identity node</p>
+                </div>
+
+                <form id="profile-form" class="space-y-4 flex-1 overflow-y-auto pr-2" onsubmit="event.preventDefault(); saveProfile();">
+                    
+                    <!-- Display Name -->
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-widest text-zinc-500">Display Name</label>
+                        <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-2">
+                            <input type="text" id="display-name" required autocomplete="off"
+                                class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8"
+                                placeholder="Enter your display name">
+                            <i data-lucide="user" class="absolute right-0 w-4 h-4 text-zinc-600"></i>
+                        </div>
+                    </div>
+
+                    <!-- Gender -->
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-widest text-zinc-500">Gender</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="gender" value="male" class="hidden peer">
+                                <div class="border border-zinc-800 peer-checked:border-white peer-checked:bg-zinc-800/50 text-center py-2 text-xs text-zinc-400 peer-checked:text-white transition-all rounded">
+                                    Male
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="gender" value="female" class="hidden peer">
+                                <div class="border border-zinc-800 peer-checked:border-white peer-checked:bg-zinc-800/50 text-center py-2 text-xs text-zinc-400 peer-checked:text-white transition-all rounded">
+                                    Female
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="gender" value="other" class="hidden peer">
+                                <div class="border border-zinc-800 peer-checked:border-white peer-checked:bg-zinc-800/50 text-center py-2 text-xs text-zinc-400 peer-checked:text-white transition-all rounded">
+                                    Other
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Bio -->
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-widest text-zinc-500">Bio</label>
+                        <div class="input-box relative flex items-start border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-2">
+                            <textarea id="bio" rows="2" required
+                                class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8 resize-none"
+                                placeholder="Tell us about yourself..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Social Links -->
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-widest text-zinc-500">Social Links</label>
+                        <div class="space-y-2">
+                            <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-2">
+                                <input type="url" id="twitter-link" autocomplete="off"
+                                    class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8"
+                                    placeholder="Twitter URL">
+                                <i data-lucide="twitter" class="absolute right-0 w-4 h-4 text-zinc-600"></i>
+                            </div>
+                            <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-2">
+                                <input type="url" id="linkedin-link" autocomplete="off"
+                                    class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8"
+                                    placeholder="LinkedIn URL">
+                                <i data-lucide="linkedin" class="absolute right-0 w-4 h-4 text-zinc-600"></i>
+                            </div>
+                            <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-2">
+                                <input type="url" id="github-link" autocomplete="off"
+                                    class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8"
+                                    placeholder="GitHub URL">
+                                <i data-lucide="github" class="absolute right-0 w-4 h-4 text-zinc-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Right Panel: Avatar Selection -->
+            <div class="w-full md:w-80 bg-[#111111] rounded-2xl p-6 flex flex-col">
+                <div class="space-y-2 mb-6">
+                    <h2 class="heading-font text-xl font-extrabold tracking-tight text-white leading-none">
+                        SELECT AVATAR
+                    </h2>
+                    <p class="text-[10px] tracking-wide text-zinc-500 uppercase">Choose your visual identity</p>
+                </div>
+
+                <!-- Avatar Grid (4 options) -->
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="avatar-option cursor-pointer rounded-xl border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center" onclick="selectAvatar(this, 'avatar1')">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                            <span class="text-xl font-bold text-white">A1</span>
+                        </div>
+                    </div>
+                    <div class="avatar-option cursor-pointer rounded-xl border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center" onclick="selectAvatar(this, 'avatar2')">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                            <span class="text-xl font-bold text-white">A2</span>
+                        </div>
+                    </div>
+                    <div class="avatar-option cursor-pointer rounded-xl border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center" onclick="selectAvatar(this, 'avatar3')">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                            <span class="text-xl font-bold text-white">A3</span>
+                        </div>
+                    </div>
+                    <div class="avatar-option cursor-pointer rounded-xl border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center" onclick="selectAvatar(this, 'avatar4')">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                            <span class="text-xl font-bold text-white">A4</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User ID Display -->
+                <div class="p-4 bg-zinc-900/30 rounded-xl border border-zinc-800 mb-4">
+                    <div class="text-center">
+                        <p class="text-[10px] uppercase tracking-widest text-zinc-500 mb-2">Your Unique ID</p>
+                        <div id="user-id-display" class="text-3xl font-mono font-bold text-white tracking-widest">
+                            ------
+                        </div>
+                        <p class="text-[9px] text-zinc-600 mt-2">Keep this ID secure</p>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button onclick="saveProfile()" 
+                    class="w-full bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-[0.2em] uppercase h-10 transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer flex-shrink-0 sticky bottom-0">
+                    <span>Complete Setup</span>
+                    <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+
+        let selectedAvatar = null;
+        let uniqueUserId = null;
+
+        // Generate 6-digit unique ID
+        function generateUniqueId() {
+            // Generate a random 6-digit number between 100000 and 999999
+            const id = Math.floor(Math.random() * 900000) + 100000;
+            return id.toString();
+        }
+
+        // Initialize user ID on page load
+        function initUserId() {
+            uniqueUserId = generateUniqueId();
+            document.getElementById('user-id-display').textContent = uniqueUserId;
+        }
+
+        function selectAvatar(element, avatarId) {
+            // Remove selected class from all avatars
+            document.querySelectorAll('.avatar-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked avatar
+            element.classList.add('selected');
+            selectedAvatar = avatarId;
+        }
+
+        // Avatar gradient map — matches the 4 options shown in the grid
+        const AVATAR_GRADIENTS = {
+            avatar1: { from: '#a855f7', to: '#ec4899', label: 'Purple / Pink'  },
+            avatar2: { from: '#3b82f6', to: '#06b6d4', label: 'Blue / Cyan'    },
+            avatar3: { from: '#22c55e', to: '#10b981', label: 'Green / Emerald' },
+            avatar4: { from: '#f97316', to: '#ef4444', label: 'Orange / Red'   },
+        };
+
+        async function saveProfile() {
+            const displayName = document.getElementById('display-name').value.trim();
+            const gender      = document.querySelector('input[name="gender"]:checked')?.value || '';
+            const bio         = document.getElementById('bio').value.trim();
+            const twitterLink = document.getElementById('twitter-link').value.trim();
+            const linkedinLink= document.getElementById('linkedin-link').value.trim();
+            const githubLink  = document.getElementById('github-link').value.trim();
+
+            if (!displayName) { alert('Please enter a display name'); return; }
+            if (!selectedAvatar) { alert('Please select an avatar'); return; }
+
+            const profile = {
+                displayName,
+                gender,
+                bio,
+                socialLinks: { twitter: twitterLink, linkedin: linkedinLink, github: githubLink },
+                avatar: selectedAvatar,
+                avatarGradient: AVATAR_GRADIENTS[selectedAvatar],
+                uid: uniqueUserId,
+                setupAt: new Date().toISOString(),
+            };
+
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+
+            // Redirect to dashboard after setup
+            window.location.href = 'dashbord.html';
+        }
+
+        // Initialize on page load
+        initUserId();
+    </script>
+</body>
+</html>
