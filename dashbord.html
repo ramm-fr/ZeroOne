@@ -489,7 +489,7 @@
         }
 
         function addContactToList(uid, name, role, initials) {
-            const chatUrl = 'chatpage.html?type=contact&name=' + encodeURIComponent(name) + '&role=' + encodeURIComponent(role) + '&initials=' + encodeURIComponent(initials);
+            const chatUrl = 'chatpage.html?uid=' + encodeURIComponent(uid) + '&name=' + encodeURIComponent(name) + '&role=' + encodeURIComponent(role) + '&initials=' + encodeURIComponent(initials);
             const container = document.getElementById('contacts-container');
             const row = document.createElement('div');
             row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/10 transition-colors border-b border-zinc-800/60 last:border-0';

@@ -266,47 +266,156 @@
     };
 
     // ── URL params ────────────────────────────────────────────────
-    const params = new URLSearchParams(window.location.search);
-    const cName  = params.get('name')     || 'Unknown';
-    const cRole  = params.get('role')     || '';
-    const cInit  = params.get('initials') || cName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+    const params   = new URLSearchParams(window.location.search);
+    const cName    = params.get('name')     || 'Unknown';
+    const cRole    = params.get('role')     || '';
+    const cInit    = params.get('initials') || cName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+    const cUid     = params.get('uid')      || '';   // contact's UID
 
-    document.getElementById('contact-name').textContent = cName;
-    document.getElementById('contact-role').textContent = cRole || 'Online';
-    document.getElementById('panel-name').textContent   = cName;
-    document.getElementById('panel-role').textContent   = cRole;
-    document.getElementById('call-contact-name').textContent = cName;
+    document.getElementById('contact-name').textContent     = cName;
+    document.getElementById('contact-role').textContent     = cRole || 'Online';
+    document.getElementById('panel-name').textContent       = cName;
+    document.getElementById('panel-role').textContent       = cRole;
+    document.getElementById('call-contact-name').textContent= cName;
     ['contact-avatar','panel-avatar','typing-avatar','call-contact-avatar'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = cInit;
     });
 
-    // ── Auth guard + profile ──────────────────────────────────────
+    // ── Session + own UID ─────────────────────────────────────────
+    let myUid        = null;
+    let myId         = null;   // auth user id
+    let conversationId = null; // sorted "uid1_uid2"
+    let realtimeSub  = null;
+
+    // ── Auth guard + load profile + boot chat ─────────────────────
     async function init() {
+        let session = null;
         try {
-            const { data:{ session } } = await db.auth.getSession();
-            if (!session) { window.location.href = 'index.html'; return; }
-            const { data:p } = await db.from('profiles').select('display_name,avatar').eq('id',session.user.id).single();
+            const res = await db.auth.getSession();
+            session = res.data.session;
+        } catch(e) {}
+
+        if (!session) { window.location.href = 'index.html'; return; }
+        myId = session.user.id;
+
+        // Load own profile for avatar + UID
+        try {
+            const { data: p } = await db.from('profiles')
+                .select('display_name, avatar, uid')
+                .eq('id', myId)
+                .single();
+
             if (p) {
-                const grad = AVATAR_GRADIENTS[p.avatar]||{from:'#52525b',to:'#27272a'};
-                const ini  = p.display_name ? p.display_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : '??';
-                const nav  = document.getElementById('nav-avatar');
+                myUid = p.uid;
+                const grad = AVATAR_GRADIENTS[p.avatar] || {from:'#52525b',to:'#27272a'};
+                const ini  = p.display_name
+                    ? p.display_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
+                    : '??';
+                const nav = document.getElementById('nav-avatar');
                 nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
                 nav.textContent = ini;
-                return;
             }
-        } catch(e) {}
-        const raw = localStorage.getItem('userProfile');
-        if (raw) {
-            const p = JSON.parse(raw);
-            const grad = AVATAR_GRADIENTS[p.avatar]||{from:'#52525b',to:'#27272a'};
-            const ini  = p.displayName ? p.displayName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : '??';
-            const nav  = document.getElementById('nav-avatar');
-            nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
-            nav.textContent = ini;
+        } catch(e) {
+            // fallback localStorage
+            const raw = localStorage.getItem('userProfile');
+            if (raw) {
+                const p    = JSON.parse(raw);
+                myUid      = p.uid || null;
+                const grad = AVATAR_GRADIENTS[p.avatar] || {from:'#52525b',to:'#27272a'};
+                const ini  = p.displayName
+                    ? p.displayName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)
+                    : '??';
+                const nav = document.getElementById('nav-avatar');
+                nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
+                nav.textContent = ini;
+            }
+        }
+
+        // Build deterministic conversation ID from two UIDs (sorted)
+        if (myUid && cUid) {
+            const parts = [myUid, cUid].sort();
+            conversationId = parts[0] + '_' + parts[1];
+        } else {
+            // No real UIDs — show a warning, chat still works locally
+            toast('Could not determine conversation ID — messages may not sync.', 'warn', 4000);
+        }
+
+        await loadHistory();
+        subscribeRealtime();
+
+        buildEmojiGrid();
+        buildStickerGrid();
+        lucide.createIcons();
+    }
+
+    // ── Load message history ──────────────────────────────────────
+    async function loadHistory() {
+        if (!conversationId) return;
+        const { data, error } = await db
+            .from('messages')
+            .select('*')
+            .eq('conversation_id', conversationId)
+            .order('created_at', { ascending: true })
+            .limit(100);
+
+        if (error) {
+            console.error('loadHistory error:', error);
+            if (error.code === '42P01') {
+                // Table doesn't exist yet
+                toast('messages table missing in Supabase — run the setup SQL.', 'error', 6000);
+            }
+            return;
+        }
+        (data || []).forEach(row => renderRow(row));
+    }
+
+    // ── Real-time subscription ────────────────────────────────────
+    function subscribeRealtime() {
+        if (!conversationId) return;
+        realtimeSub = db
+            .channel('chat:' + conversationId)
+            .on('postgres_changes', {
+                event:  'INSERT',
+                schema: 'public',
+                table:  'messages',
+                filter: 'conversation_id=eq.' + conversationId,
+            }, payload => {
+                // Only render if it's NOT from me (I already rendered on send)
+                if (payload.new.sender_uid !== myUid) {
+                    renderRow(payload.new);
+                }
+            })
+            .subscribe();
+    }
+
+    // ── Render one DB row ─────────────────────────────────────────
+    function renderRow(row) {
+        const isMe      = row.sender_uid === myUid;
+        const isSticker = row.type === 'sticker';
+        const content   = isSticker ? JSON.parse(row.body) : row.body;
+        const ts        = new Date(row.created_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+        appendMessage(content, isMe ? 'me' : 'other', isSticker, ts);
+    }
+
+    // ── Insert message to Supabase ────────────────────────────────
+    async function persistMessage(body, type) {
+        if (!conversationId || !myUid) {
+            toast('Not connected — message not delivered. Make sure both users have UIDs.', 'error', 4000);
+            return;
+        }
+        const { error } = await db.from('messages').insert({
+            conversation_id: conversationId,
+            sender_uid:      myUid,
+            receiver_uid:    cUid,
+            body:            typeof body === 'object' ? JSON.stringify(body) : body,
+            type:            type || 'text',
+        });
+        if (error) {
+            console.error('Message save failed:', error);
+            toast('Message not delivered: ' + (error.message || 'DB error'), 'error', 4000);
         }
     }
-    init();
 
     // ── Info panel ────────────────────────────────────────────────
     let infoPanelOpen = false;
@@ -337,18 +446,18 @@
 
     // ── STICKER DATA ──────────────────────────────────────────────
     const STICKERS = [
-        {label:'👾 Glitch',  bg:'#1a1a2e', text:'GLITCH'},
-        {label:'💀 Skull',   bg:'#1c1c1c', text:'☠️'},
-        {label:'🔥 Fire',    bg:'#1a0a00', text:'🔥🔥🔥'},
-        {label:'⚡ Zap',     bg:'#0d1117', text:'⚡ ZAP'},
-        {label:'🤖 Bot',     bg:'#001122', text:'🤖 BOT'},
-        {label:'🎮 GG',      bg:'#0a0014', text:'GG EZ'},
-        {label:'💯 Facts',   bg:'#001a00', text:'💯'},
-        {label:'🚀 Launch',  bg:'#000d1a', text:'🚀 LFG'},
-        {label:'🔐 Secure',  bg:'#001a0d', text:'🔐 SAFE'},
-        {label:'👻 Ghost',   bg:'#111111', text:'👻 BOO'},
-        {label:'✅ Done',    bg:'#001a07', text:'✅ DONE'},
-        {label:'❌ Denied',  bg:'#1a0000', text:'❌ NOPE'},
+        {label:'👾 Glitch', bg:'#1a1a2e', text:'GLITCH'},
+        {label:'💀 Skull',  bg:'#1c1c1c', text:'☠️'},
+        {label:'🔥 Fire',   bg:'#1a0a00', text:'🔥🔥🔥'},
+        {label:'⚡ Zap',    bg:'#0d1117', text:'⚡ ZAP'},
+        {label:'🤖 Bot',    bg:'#001122', text:'🤖 BOT'},
+        {label:'🎮 GG',     bg:'#0a0014', text:'GG EZ'},
+        {label:'💯 Facts',  bg:'#001a00', text:'💯'},
+        {label:'🚀 Launch', bg:'#000d1a', text:'🚀 LFG'},
+        {label:'🔐 Secure', bg:'#001a0d', text:'🔐 SAFE'},
+        {label:'👻 Ghost',  bg:'#111111', text:'👻 BOO'},
+        {label:'✅ Done',   bg:'#001a07', text:'✅ DONE'},
+        {label:'❌ Denied', bg:'#1a0000', text:'❌ NOPE'},
     ];
 
     function buildStickerGrid() {
@@ -369,114 +478,71 @@
     // ── Picker toggle ─────────────────────────────────────────────
     let activePicker = null;
     function togglePicker(type) {
-        const emojiEl   = document.getElementById('emoji-picker');
-        const stickerEl = document.getElementById('sticker-picker');
-        const emojiBtn  = document.getElementById('emoji-btn');
-        const stickerBtn= document.getElementById('sticker-btn');
-
-        if (activePicker === type) {
-            closePickers();
-            return;
-        }
+        if (activePicker === type) { closePickers(); return; }
         closePickers();
         activePicker = type;
-        if (type === 'emoji') {
-            emojiEl.classList.remove('hidden');
-            emojiEl.classList.add('open');
-            emojiBtn.classList.add('picker-btn-active');
-        } else {
-            stickerEl.classList.remove('hidden');
-            stickerEl.classList.add('open');
-            stickerBtn.classList.add('picker-btn-active');
-        }
+        const el  = document.getElementById(type + '-picker');
+        const btn = document.getElementById(type + '-btn');
+        el.classList.remove('hidden');
+        el.classList.add('open');
+        btn.classList.add('picker-btn-active');
     }
-
     function closePickers() {
         activePicker = null;
-        ['emoji-picker','sticker-picker'].forEach(id => {
-            const el = document.getElementById(id);
-            el.classList.remove('open');
-            el.classList.add('hidden');
+        ['emoji','sticker'].forEach(t => {
+            document.getElementById(t+'-picker').classList.remove('open');
+            document.getElementById(t+'-picker').classList.add('hidden');
+            document.getElementById(t+'-btn').classList.remove('picker-btn-active');
         });
-        document.getElementById('emoji-btn').classList.remove('picker-btn-active');
-        document.getElementById('sticker-btn').classList.remove('picker-btn-active');
     }
-
-    // Close pickers on outside click
     document.addEventListener('click', e => {
-        if (!e.target.closest('#emoji-picker, #sticker-picker, #emoji-btn, #sticker-btn')) {
-            closePickers();
-        }
+        if (!e.target.closest('#emoji-picker,#sticker-picker,#emoji-btn,#sticker-btn')) closePickers();
     });
 
     function insertText(str) {
         const inp = document.getElementById('chat-input');
-        const start = inp.selectionStart, end = inp.selectionEnd;
-        inp.value = inp.value.slice(0,start) + str + inp.value.slice(end);
-        inp.selectionStart = inp.selectionEnd = start + str.length;
-        inp.focus();
-        autoGrow(inp);
+        const s = inp.selectionStart, e2 = inp.selectionEnd;
+        inp.value = inp.value.slice(0,s) + str + inp.value.slice(e2);
+        inp.selectionStart = inp.selectionEnd = s + str.length;
+        inp.focus(); autoGrow(inp);
     }
 
     // ── CALL SYSTEM ───────────────────────────────────────────────
-    let currentStream = null;
-    let callType = null;
-    let isMuted = false, isCamOff = false;
+    let currentStream = null, callType = null, isMuted = false, isCamOff = false;
 
     async function startCall(type) {
         callType = type;
-        const overlay = document.getElementById('call-overlay');
+        const overlay   = document.getElementById('call-overlay');
         const videoArea = document.getElementById('video-area');
-        const camBtn = document.getElementById('btn-cam');
-
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
+        const camBtn    = document.getElementById('btn-cam');
+        overlay.classList.remove('hidden'); overlay.classList.add('flex');
         document.getElementById('call-status').textContent = type === 'video' ? 'Connecting video…' : 'Calling…';
+        type === 'video'
+            ? (videoArea.classList.remove('hidden'), camBtn.classList.remove('hidden'))
+            : (videoArea.classList.add('hidden'),    camBtn.classList.add('hidden'));
         lucide.createIcons();
-
-        if (type === 'video') {
-            videoArea.classList.remove('hidden');
-            camBtn.classList.remove('hidden');
-        } else {
-            videoArea.classList.add('hidden');
-            camBtn.classList.add('hidden');
-        }
-
         try {
-            const constraints = type === 'video'
-                ? { audio: true, video: true }
-                : { audio: true, video: false };
-
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-            if (type === 'video') {
-                document.getElementById('local-video').srcObject = currentStream;
-            }
-
-            // Simulate connection after 1.5s
+            currentStream = await navigator.mediaDevices.getUserMedia(
+                type === 'video' ? {audio:true,video:true} : {audio:true,video:false}
+            );
+            if (type === 'video') document.getElementById('local-video').srcObject = currentStream;
             setTimeout(() => {
                 document.getElementById('call-status').textContent =
                     type === 'video' ? 'Video call connected' : 'Call connected';
             }, 1500);
-
         } catch(err) {
-            toast('Could not access microphone/camera: ' + err.message, 'error', 4000);
+            toast('Cannot access mic/camera: ' + err.message, 'error', 4000);
             endCall();
         }
     }
 
     function endCall() {
-        if (currentStream) {
-            currentStream.getTracks().forEach(t => t.stop());
-            currentStream = null;
-        }
+        if (currentStream) { currentStream.getTracks().forEach(t=>t.stop()); currentStream=null; }
         document.getElementById('call-overlay').classList.add('hidden');
         document.getElementById('call-overlay').classList.remove('flex');
         document.getElementById('local-video').srcObject = null;
-        isMuted = false;
-        isCamOff = false;
-        toast('Call ended.', 'info', 2000);
-        lucide.createIcons();
+        isMuted=false; isCamOff=false;
+        toast('Call ended.','info',2000); lucide.createIcons();
     }
 
     function toggleMute() {
@@ -485,8 +551,8 @@
         currentStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
         const btn = document.getElementById('btn-mute');
         btn.querySelector('i').setAttribute('data-lucide', isMuted ? 'mic-off' : 'mic');
-        btn.style.background = isMuted ? 'rgba(239,68,68,0.2)' : '';
-        btn.style.borderColor = isMuted ? 'rgba(239,68,68,0.5)' : '';
+        btn.style.background   = isMuted ? 'rgba(239,68,68,0.2)' : '';
+        btn.style.borderColor  = isMuted ? 'rgba(239,68,68,0.5)' : '';
         lucide.createIcons();
         toast(isMuted ? 'Muted.' : 'Unmuted.', 'info', 1500);
     }
@@ -497,30 +563,18 @@
         currentStream.getVideoTracks().forEach(t => t.enabled = !isCamOff);
         const btn = document.getElementById('btn-cam');
         btn.querySelector('i').setAttribute('data-lucide', isCamOff ? 'video-off' : 'video');
-        btn.style.background = isCamOff ? 'rgba(239,68,68,0.2)' : '';
+        btn.style.background  = isCamOff ? 'rgba(239,68,68,0.2)' : '';
         btn.style.borderColor = isCamOff ? 'rgba(239,68,68,0.5)' : '';
         lucide.createIcons();
         toast(isCamOff ? 'Camera off.' : 'Camera on.', 'info', 1500);
     }
 
-    // ── MESSAGE SYSTEM ────────────────────────────────────────────
-    const AUTO_REPLIES = [
-        'Copy that. Proceeding with the protocol.',
-        'Signal received. Stand by.',
-        'Acknowledged. Keeping the channel open.',
-        "Confirmed. What's the next vector?",
-        'Roger. Encrypting response now.',
-        'Understood. Running verification.',
-        'Affirmative. Locked in.',
-        'Received. Awaiting further instructions.',
-    ];
-    let replyIndex = 0;
-
+    // ── MESSAGE RENDERING ─────────────────────────────────────────
     function nowTime() {
         return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     }
 
-    function appendMessage(content, side, isSticker) {
+    function appendMessage(content, side, isSticker, tsOverride) {
         const area = document.getElementById('messages-area');
         const isMe = side === 'me';
         const wrapper = document.createElement('div');
@@ -534,75 +588,48 @@
         }
 
         const bubble = document.createElement('div');
-
         if (isSticker) {
             bubble.className = 'flex flex-col items-' + (isMe ? 'end' : 'start') + ' gap-1';
-            const stickerBox = document.createElement('div');
-            stickerBox.className = 'w-24 h-24 border border-zinc-700 flex items-center justify-center text-2xl font-bold font-mono tracking-widest';
-            stickerBox.style.background = content.bg;
-            stickerBox.style.color = '#e4e4e7';
-            stickerBox.textContent = content.text;
-            bubble.appendChild(stickerBox);
+            const box = document.createElement('div');
+            box.className = 'w-24 h-24 border border-zinc-700 flex items-center justify-center text-2xl font-bold font-mono tracking-widest';
+            box.style.background = content.bg; box.style.color = '#e4e4e7';
+            box.textContent = content.text;
+            bubble.appendChild(box);
         } else {
             bubble.className = isMe
                 ? 'max-w-[70%] bg-white text-zinc-900 px-4 py-2.5 text-sm leading-relaxed'
                 : 'max-w-[70%] bg-zinc-900/60 border border-zinc-800 text-zinc-100 px-4 py-2.5 text-sm leading-relaxed';
-            const msgText = document.createElement('p');
-            msgText.textContent = content;
-            bubble.appendChild(msgText);
+            const p = document.createElement('p');
+            p.textContent = content;
+            bubble.appendChild(p);
         }
 
         const ts = document.createElement('span');
         ts.className = 'block text-[9px] mt-1 font-mono ' + (isMe ? 'text-zinc-500 text-right' : 'text-zinc-600');
-        ts.textContent = nowTime();
+        ts.textContent = tsOverride || nowTime();
         bubble.appendChild(ts);
         wrapper.appendChild(bubble);
         area.appendChild(wrapper);
         area.scrollTop = area.scrollHeight;
     }
 
-    function sendSticker(s) {
-        appendMessage(s, 'me', true);
-        triggerReply();
-    }
-
-    let typingTimer = null;
-    function showTyping() {
-        const ti = document.getElementById('typing-indicator');
-        ti.classList.remove('hidden');
-        ti.classList.add('flex');
-        document.getElementById('messages-area').scrollTop = 999999;
-    }
-    function hideTyping() {
-        document.getElementById('typing-indicator').classList.add('hidden');
-        document.getElementById('typing-indicator').classList.remove('flex');
-    }
-
-    function triggerReply() {
-        clearTimeout(typingTimer);
-        showTyping();
-        typingTimer = setTimeout(function() {
-            hideTyping();
-            appendMessage(AUTO_REPLIES[replyIndex % AUTO_REPLIES.length], 'other', false);
-            replyIndex++;
-        }, 1200 + Math.random() * 800);
-    }
-
+    // ── SEND ──────────────────────────────────────────────────────
     function sendMessage() {
         const input = document.getElementById('chat-input');
         const text  = input.value.trim();
         if (!text) return;
-        appendMessage(text, 'me', false);
-        input.value = '';
-        autoGrow(input);
-        triggerReply();
+        appendMessage(text, 'me', false);       // render immediately
+        persistMessage(text, 'text');            // save to Supabase
+        input.value = ''; autoGrow(input);
+    }
+
+    function sendSticker(s) {
+        appendMessage(s, 'me', true);
+        persistMessage(s, 'sticker');
     }
 
     function handleInputKey(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
     }
 
     function autoGrow(el) {
@@ -610,10 +637,20 @@
         el.style.height = Math.min(el.scrollHeight, 120) + 'px';
     }
 
-    // ── Init ──────────────────────────────────────────────────────
-    buildEmojiGrid();
-    buildStickerGrid();
-    lucide.createIcons();
+    // Typing indicator (local UI only)
+    let typingTimer = null;
+    function showTyping() {
+        const ti = document.getElementById('typing-indicator');
+        ti.classList.remove('hidden'); ti.classList.add('flex');
+        document.getElementById('messages-area').scrollTop = 999999;
+    }
+    function hideTyping() {
+        const ti = document.getElementById('typing-indicator');
+        ti.classList.add('hidden'); ti.classList.remove('flex');
+    }
+
+    // ── BOOT ──────────────────────────────────────────────────────
+    init();
 </script>
 </body>
 </html>
