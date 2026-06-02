@@ -488,7 +488,7 @@
             addContactToList(uid, name, role, initials);
         }
 
-        function addContactToList(uid, name, role, initials) {
+        function addContactToList(uid, name, role, initials, unread) {
             const chatUrl = 'chatpage.html?uid=' + encodeURIComponent(uid) + '&name=' + encodeURIComponent(name) + '&role=' + encodeURIComponent(role) + '&initials=' + encodeURIComponent(initials);
             const container = document.getElementById('contacts-container');
             const row = document.createElement('div');
@@ -499,7 +499,10 @@
                 <div class="col-span-6 sm:col-span-5 flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center text-[10px] font-bold tracking-widest text-zinc-400">${initials}</div>
                     <div class="truncate">
-                        <h4 class="text-xs font-bold text-white">${name}</h4>
+                        <div class="flex items-center gap-1.5">
+                            <h4 class="text-xs font-bold text-white">${name}</h4>
+                            ${unread ? '<span class="unread-badge w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>' : ''}
+                        </div>
                         <span class="text-[10px] text-zinc-500 font-mono">#${uid}</span>
                     </div>
                 </div>
@@ -538,10 +541,21 @@
         }
 
         // ── Load contacts from Supabase on page load ──────────────────
+        // Also subscribes to new incoming messages so contacts with unread msgs
+        // appear automatically even if the user never manually added them.
         async function loadContacts() {
             try {
                 const { data: { session } } = await db.auth.getSession();
                 if (!session) return;
+
+                // Get own UID first
+                const { data: me } = await db
+                    .from('profiles')
+                    .select('uid')
+                    .eq('id', session.user.id)
+                    .single();
+
+                const myUid = me ? me.uid : null;
 
                 const { data, error } = await db
                     .from('contacts')
@@ -553,8 +567,67 @@
                 if (!data || data.length === 0) return;
 
                 data.forEach(c => {
-                    addContactToList(c.contact_uid, c.name, c.role, c.initials || c.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2));
+                    addContactToList(
+                        c.contact_uid,
+                        c.name,
+                        c.role || '',
+                        c.initials || c.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                    );
                 });
+
+                // ── Real-time: auto-show contact + badge when someone messages you ──
+                if (myUid) {
+                    db.channel('inbox:' + myUid)
+                        .on('postgres_changes', {
+                            event:  'INSERT',
+                            schema: 'public',
+                            table:  'messages',
+                            filter: 'receiver_uid=eq.' + myUid,
+                        }, payload => {
+                            const msg = payload.new;
+                            const senderUid = msg.sender_uid;
+
+                            // Check if this sender is already in the contacts list
+                            const existing = document.querySelector('#contacts-container [data-uid="' + senderUid + '"]');
+
+                            if (existing) {
+                                // Just add/update an unread badge on the existing row
+                                let badge = existing.querySelector('.unread-badge');
+                                if (!badge) {
+                                    badge = document.createElement('span');
+                                    badge.className = 'unread-badge w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0';
+                                    const nameEl = existing.querySelector('h4');
+                                    if (nameEl) nameEl.parentElement.appendChild(badge);
+                                }
+                            } else {
+                                // New sender — fetch their profile and auto-add to contacts list
+                                db.from('profiles')
+                                    .select('display_name, gender, uid')
+                                    .eq('uid', senderUid)
+                                    .single()
+                                    .then(({ data: sender }) => {
+                                        if (!sender) return;
+                                        const name     = sender.display_name || 'Unknown';
+                                        const role     = sender.gender || '';
+                                        const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+                                        // Save to DB so it persists on next load
+                                        db.from('contacts').upsert({
+                                            owner_id:    session.user.id,
+                                            contact_uid: senderUid,
+                                            name,
+                                            role,
+                                            initials,
+                                            added_at:    new Date().toISOString(),
+                                        }, { onConflict: 'owner_id,contact_uid' });
+
+                                        addContactToList(senderUid, name, role, initials, true /* unread */);
+                                        toast(name + ' sent you a message.', 'info', 4000);
+                                    });
+                            }
+                        })
+                        .subscribe();
+                }
             } catch(e) { console.warn('loadContacts failed:', e); }
         }
 

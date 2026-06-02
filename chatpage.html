@@ -414,6 +414,43 @@
         if (error) {
             console.error('Message save failed:', error);
             toast('Message not delivered: ' + (error.message || 'DB error'), 'error', 4000);
+            return;
+        }
+
+        // Auto-add sender as contact on receiver's dashboard.
+        // We upsert a contact row with owner_id = receiver's auth id.
+        // We need the receiver's auth id — look it up by their UID.
+        try {
+            const { data: receiverProfile } = await db
+                .from('profiles')
+                .select('id, display_name, gender, avatar')
+                .eq('uid', cUid)
+                .single();
+
+            if (receiverProfile) {
+                // Upsert: receiver gets sender as contact
+                await db.from('contacts').upsert({
+                    owner_id:    receiverProfile.id,
+                    contact_uid: myUid,
+                    name:        cName,      // sender's name as seen by receiver
+                    role:        '',
+                    initials:    cInit,
+                    added_at:    new Date().toISOString(),
+                }, { onConflict: 'owner_id,contact_uid' });
+
+                // Also upsert: sender keeps receiver as contact (in case they don't have them yet)
+                await db.from('contacts').upsert({
+                    owner_id:    myId,
+                    contact_uid: cUid,
+                    name:        cName,
+                    role:        cRole || '',
+                    initials:    cInit,
+                    added_at:    new Date().toISOString(),
+                }, { onConflict: 'owner_id,contact_uid' });
+            }
+        } catch(e) {
+            // Non-fatal — message was sent, contact auto-add failed silently
+            console.warn('Auto-contact upsert failed:', e);
         }
     }
 
