@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body { font-family: 'Space Grotesk', sans-serif; background-color: #09090b; overflow: hidden; }
         .heading-font { font-family: 'Syne', sans-serif; }
@@ -191,8 +193,15 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // ── Profile ───────────────────────────────────────────────────
+        // ── Supabase ──────────────────────────────────────────────────
+        const SUPABASE_URL      = 'https://belblvybuefysawyoocv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGJsdnlidWVmeXNhd3lvb2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNTgyMDAsImV4cCI6MjA5NTkzNDIwMH0.F7udCTa8bbmSiNg0Qx_xMZX7mrl-JifU44SSKvRQSk4';
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ── Avatar gradients ──────────────────────────────────────────
+        // ── Avatar gradients ──────────────────────────────────────────
         const AVATAR_GRADIENTS = {
             avatar1: { from: '#a855f7', to: '#ec4899' },
             avatar2: { from: '#3b82f6', to: '#06b6d4' },
@@ -200,10 +209,42 @@
             avatar4: { from: '#f97316', to: '#ef4444' },
         };
 
-        function loadProfile() {
+        async function loadProfile() {
+            // Try Supabase first
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (session) {
+                    const { data: p, error } = await db
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (!error && p) {
+                        // Cache locally
+                        const local = {
+                            displayName: p.display_name,
+                            gender:      p.gender,
+                            bio:         p.bio,
+                            socialLinks: { twitter: p.social_twitter, linkedin: p.social_linkedin, github: p.social_github },
+                            avatar:      p.avatar,
+                            uid:         p.uid,
+                            setupAt:     p.setup_at,
+                        };
+                        localStorage.setItem('userProfile', JSON.stringify(local));
+                        renderProfile(local);
+                        return;
+                    }
+                }
+            } catch(e) { console.warn('Supabase load failed, using cache', e); }
+
+            // Fallback to localStorage cache
             const raw = localStorage.getItem('userProfile');
-            if (!raw) return;
-            const p = JSON.parse(raw);
+            if (raw) renderProfile(JSON.parse(raw));
+        }
+
+        function renderProfile(p) {
+            if (!p) return;
             const grad = AVATAR_GRADIENTS[p.avatar] || { from: '#52525b', to: '#27272a' };
             const initials = p.displayName ? p.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
 
@@ -261,8 +302,10 @@
 
         function clearProfileAndGoSetup() {
             if (confirm('Reset your identity? This will clear all saved profile data.')) {
-                localStorage.removeItem('userProfile');
-                window.location.href = 'profile-setup.html';
+                db.auth.signOut().finally(() => {
+                    localStorage.removeItem('userProfile');
+                    window.location.href = 'profile-setup.html';
+                });
             }
         }
 
@@ -330,17 +373,9 @@
             });
         }
 
-        // ── UID Search ────────────────────────────────────────────────
-        const UID_DATABASE = {
-            '100001': { name: 'Aria Chen',   role: 'Network Analyst',     email: 'a.chen@kronos.net' },
-            '200034': { name: 'Marcus Veil', role: 'Threat Intelligence', email: 'm.veil@nexus.org'  },
-            '305512': { name: 'Sable Ortiz', role: 'Comms Engineer',      email: 's.ortiz@kronos.net'},
-            '412087': { name: 'Ryn Harker',  role: 'Cryptographer',       email: 'r.harker@void.io'  },
-            '500099': { name: 'Nova Ellis',  role: 'Systems Infiltrator', email: 'n.ellis@nexus.org' },
-        };
-
-        function searchUID() {
-            const uid = document.getElementById('uid-input').value.trim();
+        // ── UID Search (Supabase) ─────────────────────────────────────
+        async function searchUID() {
+            const uid      = document.getElementById('uid-input').value.trim();
             const resultEl = document.getElementById('uid-result');
             const errorEl  = document.getElementById('uid-error');
             resultEl.classList.add('hidden');
@@ -352,50 +387,69 @@
                 lucide.createIcons();
                 return;
             }
-            const user = UID_DATABASE[uid];
-            if (!user) {
+
+            // Show loading state
+            resultEl.innerHTML = '<p class="text-[11px] text-zinc-500 text-center py-2 font-mono">Searching network…</p>';
+            resultEl.classList.remove('hidden');
+
+            const { data, error } = await db
+                .from('profiles')
+                .select('uid, display_name, gender, bio, avatar')
+                .eq('uid', uid)
+                .single();
+
+            resultEl.classList.add('hidden');
+
+            if (error || !data) {
                 document.getElementById('uid-error-text').textContent = 'No identity found for UID #' + uid + '.';
                 errorEl.classList.remove('hidden');
                 lucide.createIcons();
                 return;
             }
-            const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+            const name     = data.display_name || 'Unknown';
+            const role     = data.gender       || 'User';
+            const bio      = data.bio          || '';
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
             resultEl.innerHTML = `
                 <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 flex items-center gap-3">
                     <div class="w-9 h-9 rounded-full border border-zinc-700 bg-zinc-900 flex items-center justify-center text-[10px] font-bold tracking-widest text-white flex-shrink-0">${initials}</div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-xs font-bold text-white truncate">${user.name}</p>
-                        <p class="text-[10px] text-zinc-500 font-mono truncate">${user.email}</p>
-                        <p class="text-[10px] text-zinc-400 truncate">${user.role}</p>
+                        <p class="text-xs font-bold text-white truncate">${name}</p>
+                        <p class="text-[10px] text-zinc-500 font-mono truncate">${bio || role}</p>
+                        <p class="text-[10px] text-zinc-400 truncate">${role}</p>
                     </div>
                     <span class="text-[9px] font-mono text-zinc-600 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded flex-shrink-0">#${uid}</span>
                 </div>
-                <button onclick="addContactFromUID('${uid}')" class="w-full mt-2 bg-white text-black text-xs font-bold py-2.5 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5">
+                <button onclick="addContactFromSearch(${JSON.stringify({uid, name, role, bio, initials}).replace(/"/g,'&quot;')})" 
+                    class="w-full mt-2 bg-white text-black text-xs font-bold py-2.5 rounded-lg hover:bg-zinc-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5">
                     <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Add to Contacts
                 </button>`;
             resultEl.classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function addContactFromUID(uid) {
-            const user = UID_DATABASE[uid];
-            if (!user) return;
-            const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-            const chatUrl = 'chatpage.html?type=contact&name=' + encodeURIComponent(user.name) + '&role=' + encodeURIComponent(user.role) + '&initials=' + encodeURIComponent(initials);
+        function addContactFromSearch(user) {
+            addContactToList(user.uid, user.name, user.role, user.initials);
+        }
+
+        function addContactToList(uid, name, role, initials) {
+            const chatUrl = 'chatpage.html?type=contact&name=' + encodeURIComponent(name) + '&role=' + encodeURIComponent(role) + '&initials=' + encodeURIComponent(initials);
 
             const container = document.getElementById('contacts-container');
             const row = document.createElement('div');
             row.className = 'grid grid-cols-12 gap-4 px-6 py-4 items-center hover:bg-zinc-900/10 transition-colors';
-            row.setAttribute('data-name', user.name);
+            row.setAttribute('data-name', name);
             row.innerHTML = `
                 <div class="col-span-6 sm:col-span-5 flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full border border-zinc-800 bg-zinc-900 flex items-center justify-center text-[10px] font-bold tracking-widest text-zinc-400">${initials}</div>
                     <div class="truncate">
-                        <h4 class="text-xs font-bold text-white">${user.name}</h4>
-                        <span class="text-[10px] text-zinc-500 font-mono">${user.email}</span>
+                        <h4 class="text-xs font-bold text-white">${name}</h4>
+                        <span class="text-[10px] text-zinc-500 font-mono">#${uid}</span>
                     </div>
                 </div>
-                <div class="col-span-3 sm:col-span-4 text-xs text-zinc-400">${user.role}</div>
+                <div class="col-span-3 sm:col-span-4 text-xs text-zinc-400">${role}</div>
                 <div class="col-span-3 sm:col-span-3 flex justify-end gap-3">
                     <button class="icon-hover p-1 text-zinc-500 hover:text-white transition-colors cursor-pointer" onclick="window.location.href='${chatUrl}'">
                         <i data-lucide="message-square" class="w-4 h-4"></i>

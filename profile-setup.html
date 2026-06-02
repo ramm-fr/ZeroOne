@@ -12,6 +12,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Syne:wght@700;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         body {
@@ -194,74 +196,126 @@
         </div>
     </div>
 
-    <!-- Initialize Lucide Icons -->
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
         lucide.createIcons();
 
-        let selectedAvatar = null;
-        let uniqueUserId = null;
+        // ── Supabase ──────────────────────────────────────────────────
+        const SUPABASE_URL     = 'https://belblvybuefysawyoocv.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGJsdnlidWVmeXNhd3lvb2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNTgyMDAsImV4cCI6MjA5NTkzNDIwMH0.F7udCTa8bbmSiNg0Qx_xMZX7mrl-JifU44SSKvRQSk4';
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // Generate 6-digit unique ID
+        let selectedAvatar = null;
+        let uniqueUserId   = null;
+
+        const AVATAR_GRADIENTS = {
+            avatar1: { from: '#a855f7', to: '#ec4899', label: 'Purple / Pink'   },
+            avatar2: { from: '#3b82f6', to: '#06b6d4', label: 'Blue / Cyan'     },
+            avatar3: { from: '#22c55e', to: '#10b981', label: 'Green / Emerald' },
+            avatar4: { from: '#f97316', to: '#ef4444', label: 'Orange / Red'    },
+        };
+
+        // ── Generate & display UID ────────────────────────────────────
         function generateUniqueId() {
-            // Generate a random 6-digit number between 100000 and 999999
-            const id = Math.floor(Math.random() * 900000) + 100000;
-            return id.toString();
+            return (Math.floor(Math.random() * 900000) + 100000).toString();
         }
 
-        // Initialize user ID on page load
-        function initUserId() {
+        async function initUserId() {
+            // Check if there's already a logged-in session with an existing profile
+            const { data: { session } } = await db.auth.getSession();
+            if (session) {
+                const { data: existing } = await db
+                    .from('profiles')
+                    .select('uid')
+                    .eq('id', session.user.id)
+                    .single();
+                if (existing?.uid) {
+                    uniqueUserId = existing.uid;
+                    document.getElementById('user-id-display').textContent = uniqueUserId;
+                    return;
+                }
+            }
             uniqueUserId = generateUniqueId();
             document.getElementById('user-id-display').textContent = uniqueUserId;
         }
 
         function selectAvatar(element, avatarId) {
-            // Remove selected class from all avatars
-            document.querySelectorAll('.avatar-option').forEach(el => {
-                el.classList.remove('selected');
-            });
-            
-            // Add selected class to clicked avatar
+            document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
             selectedAvatar = avatarId;
         }
 
-        // Avatar gradient map — matches the 4 options shown in the grid
-        const AVATAR_GRADIENTS = {
-            avatar1: { from: '#a855f7', to: '#ec4899', label: 'Purple / Pink'  },
-            avatar2: { from: '#3b82f6', to: '#06b6d4', label: 'Blue / Cyan'    },
-            avatar3: { from: '#22c55e', to: '#10b981', label: 'Green / Emerald' },
-            avatar4: { from: '#f97316', to: '#ef4444', label: 'Orange / Red'   },
-        };
-
+        // ── Save profile ──────────────────────────────────────────────
         async function saveProfile() {
-            const displayName = document.getElementById('display-name').value.trim();
-            const gender      = document.querySelector('input[name="gender"]:checked')?.value || '';
-            const bio         = document.getElementById('bio').value.trim();
-            const twitterLink = document.getElementById('twitter-link').value.trim();
-            const linkedinLink= document.getElementById('linkedin-link').value.trim();
-            const githubLink  = document.getElementById('github-link').value.trim();
+            const displayName  = document.getElementById('display-name').value.trim();
+            const gender       = document.querySelector('input[name="gender"]:checked')?.value || '';
+            const bio          = document.getElementById('bio').value.trim();
+            const twitterLink  = document.getElementById('twitter-link').value.trim();
+            const linkedinLink = document.getElementById('linkedin-link').value.trim();
+            const githubLink   = document.getElementById('github-link').value.trim();
 
-            if (!displayName) { alert('Please enter a display name'); return; }
-            if (!selectedAvatar) { alert('Please select an avatar'); return; }
+            if (!displayName)   { showError('Please enter a display name'); return; }
+            if (!selectedAvatar){ showError('Please select an avatar');     return; }
 
-            const profile = {
-                displayName,
-                gender,
-                bio,
-                socialLinks: { twitter: twitterLink, linkedin: linkedinLink, github: githubLink },
-                avatar: selectedAvatar,
-                avatarGradient: AVATAR_GRADIENTS[selectedAvatar],
-                uid: uniqueUserId,
-                setupAt: new Date().toISOString(),
-            };
+            const btn = document.querySelector('button[onclick="saveProfile()"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span>Saving…</span>';
 
-            localStorage.setItem('userProfile', JSON.stringify(profile));
+            try {
+                // 1. Get current auth session
+                const { data: { session }, error: sessionErr } = await db.auth.getSession();
+                if (sessionErr || !session) throw new Error('Not authenticated. Please sign in first.');
 
-            // Redirect to dashboard after setup
-            window.location.href = 'dashbord.html';
+                // 2. Build the profile row
+                const profileRow = {
+                    id:           session.user.id,
+                    uid:          uniqueUserId,
+                    display_name: displayName,
+                    gender,
+                    bio,
+                    avatar:       selectedAvatar,
+                    social_twitter:  twitterLink  || null,
+                    social_linkedin: linkedinLink || null,
+                    social_github:   githubLink   || null,
+                    setup_at:     new Date().toISOString(),
+                };
+
+                // 3. Upsert into Supabase profiles table
+                const { error: upsertErr } = await db
+                    .from('profiles')
+                    .upsert(profileRow, { onConflict: 'id' });
+
+                if (upsertErr) throw upsertErr;
+
+                // 4. Cache in localStorage for instant load (offline-friendly)
+                const localProfile = {
+                    displayName,
+                    gender,
+                    bio,
+                    socialLinks: { twitter: twitterLink, linkedin: linkedinLink, github: githubLink },
+                    avatar:       selectedAvatar,
+                    avatarGradient: AVATAR_GRADIENTS[selectedAvatar],
+                    uid:          uniqueUserId,
+                    setupAt:      new Date().toISOString(),
+                };
+                localStorage.setItem('userProfile', JSON.stringify(localProfile));
+
+                window.location.href = 'dashbord.html';
+            } catch (err) {
+                console.error(err);
+                showError(err.message || 'Failed to save profile. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<span>Complete Setup</span><i data-lucide="arrow-up-right" class="w-4 h-4"></i>';
+                lucide.createIcons();
+            }
         }
 
-        // Initialize on page load
+        function showError(msg) {
+            alert(msg);
+        }
+
         initUserId();
     </script>
 </body>
