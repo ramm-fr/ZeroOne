@@ -344,7 +344,10 @@
             // Sign up with Supabase
             const { data, error } = await supabaseClient.auth.signUp({
                 email: email,
-                password: password
+                password: password,
+                options: {
+                    emailRedirectTo: window.location.origin + '/confirm-email.html'
+                }
             });
 
             if (error) {
@@ -353,14 +356,13 @@
 
             // Check if email confirmation is required
             if (data.user && !data.session) {
-                toast('Account created! Please check your email to confirm your account.', 'success', 5000);
-                submitButton.disabled = false;
-                submitButton.innerHTML = '<span>Initialize Node</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>';
-                lucide.createIcons();
+                // Store email so confirm page can display it and resend if needed
+                sessionStorage.setItem('pendingConfirmEmail', email);
+                window.location.href = 'confirm-email.html';
                 return;
             }
 
-            // If auto-confirmed, redirect to profile setup
+            // If auto-confirmed (email confirmation disabled in Supabase), go straight to profile setup
             if (data.session) {
                 window.location.href = 'profile-setup.html';
             }
@@ -371,7 +373,7 @@
 
             // Send password reset email with Supabase
             const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}/profile-setup.html`
+                redirectTo: window.location.origin + '/confirm-email.html'
             });
 
             if (error) {
