@@ -169,7 +169,7 @@
                         oninput="onGifSearch(this.value)"
                         class="w-full bg-zinc-900/40 border border-zinc-800 focus:border-zinc-500 text-xs text-zinc-200 placeholder-zinc-700 px-2.5 py-1.5 focus:outline-none transition-colors" />
                 </div>
-                <span class="text-[8px] font-mono text-zinc-700 flex-shrink-0">via Tenor</span>
+                <span class="text-[8px] font-mono text-zinc-700 flex-shrink-0">via KLIPY</span>
             </div>
             <!-- Category tabs -->
             <div id="gif-categories" class="flex gap-1 px-3 py-2 overflow-x-auto flex-shrink-0 custom-scroll" style="scrollbar-width:none"></div>
@@ -271,7 +271,7 @@
 <script>
     // ── Supabase ──────────────────────────────────────────────────
     const SUPABASE_URL      = 'https://belblvybuefysawyoocv.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGJsdnlidWVmeXNhd3lvb2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNTgyMDAsImV4cCI6MjA5NTkzNDIwMH0.F7udCTa8bbmSiNg0Qx_xMZX7mrl-JifV44SSKvRQSk4';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGJsdnlidWVmeXNhd3lvb2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNTgyMDAsImV4cCI6MjA5NTkzNDIwMH0.F7udCTa8bbmSiNg0Qx_xMZX7mrl-JifU44SSKvRQSk4';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const AVATAR_GRADIENTS = {
@@ -452,21 +452,34 @@
     // ── Insert message to Supabase ────────────────────────────────
     async function persistMessage(body, type) {
         if (!conversationId || !myUid) {
+            console.error('Missing required data:', { conversationId, myUid, cUid });
             toast('Not connected — message not delivered. Make sure both users have UIDs.', 'error', 4000);
             return;
         }
-        const { error } = await db.from('messages').insert({
+
+        console.log('Attempting to save message:', { conversationId, sender_uid: myUid, receiver_uid: cUid, type });
+
+        const { error, data } = await db.from('messages').insert({
             conversation_id: conversationId,
             sender_uid:      myUid,
             receiver_uid:    cUid,
             body:            typeof body === 'object' ? JSON.stringify(body) : body,
             type:            type || 'text',
-        });
+        }).select();
+
         if (error) {
             console.error('Message save failed:', error);
-            toast('Message not delivered: ' + (error.message || 'DB error'), 'error', 4000);
+            console.error('Error details:', { code: error.code, message: error.message, details: error.details, hint: error.hint });
+
+            if (error.code === '401' || error.code === '42501') {
+                toast('Permission denied. Check Supabase RLS policies for messages table.', 'error', 6000);
+            } else {
+                toast('Message not delivered: ' + (error.message || 'DB error'), 'error', 4000);
+            }
             return;
         }
+
+        console.log('Message saved successfully:', data);
 
         // Auto-add sender as contact on receiver's dashboard.
         // We upsert a contact row with owner_id = receiver's auth id.
@@ -532,10 +545,10 @@
         });
     }
 
-    // ── STICKER / GIF via Tenor API ───────────────────────────────
-    // Uses Tenor v2 API (free, no billing — just a client key)
-    const TENOR_KEY  = 'AIzaSyAyimkuYQYF_FXVALexPmv55SkidyuFa9o'; // Tenor demo key (limited) — replace with your own from tenor.com/developer
-    const TENOR_LIMIT = 20;
+    // ── STICKER / GIF via KLIPY API ───────────────────────────────
+    // Uses KLIPY API (free alternative to Tenor/GIPHY)
+    const KLIPY_KEY  = 'RHBu53IXXv5HjTDyDznxBoR6w9isCSriVXHyPRMoZvvoVa32yBSRL3BEPwgWgkr9';
+    const KLIPY_LIMIT = 20;
     let gifSearchTimer = null;
 
     const GIF_CATEGORIES = [
@@ -558,15 +571,23 @@
 
         try {
             const endpoint = query
-                ? `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(query)}&key=${TENOR_KEY}&limit=${TENOR_LIMIT}&media_filter=gif`
-                : `https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=${TENOR_LIMIT}&media_filter=gif`;
+                ? `https://api.klipy.com/api/v1/${KLIPY_KEY}/gifs/search?q=${encodeURIComponent(query)}&per_page=${KLIPY_LIMIT}`
+                : `https://api.klipy.com/api/v1/${KLIPY_KEY}/gifs/trending?per_page=${KLIPY_LIMIT}`;
 
             const res  = await fetch(endpoint);
             const json = await res.json();
 
+            console.log('KLIPY API response:', json);
+
             grid.innerHTML = '';
 
-            if (!json.results || json.results.length === 0) {
+            if (!res.ok) {
+                grid.innerHTML = `<p class="text-[10px] text-red-500 text-center py-4">API Error: ${json.message || json.error || 'Unknown error'}</p>`;
+                console.error('KLIPY API error:', json);
+                return;
+            }
+
+            if (!json.data || !json.data.data || json.data.data.length === 0) {
                 grid.innerHTML = '<p class="text-[10px] text-zinc-600 text-center py-4 col-span-3">No results found.</p>';
                 return;
             }
@@ -580,17 +601,17 @@
             grid.className = 'flex-1 overflow-y-auto custom-scroll px-3 pb-3 grid gap-1.5';
             grid.style.gridTemplateColumns = '1fr 1fr';
 
-            json.results.forEach((item, i) => {
-                const gif = item.media_formats?.gif || item.media_formats?.tinygif;
+            json.data.data.forEach((item, i) => {
+                const gif = item.files?.gif || item.files?.mediumgif || item.files?.tinygif;
                 if (!gif) return;
 
                 const btn = document.createElement('button');
                 btn.className = 'w-full overflow-hidden border border-zinc-800 hover:border-zinc-500 transition-colors cursor-pointer bg-zinc-900/40';
-                btn.title = item.content_description || 'GIF';
+                btn.title = item.title || 'GIF';
 
                 const img = document.createElement('img');
                 img.src          = gif.url;
-                img.alt          = item.content_description || 'GIF';
+                img.alt          = item.title || 'GIF';
                 img.className    = 'w-full h-auto block';
                 img.loading      = 'lazy';
                 img.style.aspectRatio = '1';
@@ -598,7 +619,7 @@
 
                 btn.appendChild(img);
                 btn.onclick = () => {
-                    sendGif({ url: gif.url, alt: item.content_description || 'GIF' });
+                    sendGif({ url: gif.url, alt: item.title || 'GIF' });
                     closePickers();
                 };
 
@@ -607,7 +628,7 @@
 
         } catch(err) {
             grid.innerHTML = '<p class="text-[10px] text-red-500 text-center py-4">Failed to load GIFs.</p>';
-            console.error('Tenor fetch error:', err);
+            console.error('KLIPY fetch error:', err);
         }
     }
 
