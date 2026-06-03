@@ -128,39 +128,101 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto custom-scroll px-4 sm:px-5 py-4 sm:py-5 space-y-4 sm:space-y-5">
-                <div class="flex flex-col items-center gap-3 pb-4 sm:pb-5 border-b border-zinc-800/60">
-                    <div id="drawer-avatar" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold text-white border-2 border-zinc-700 bg-zinc-800"></div>
-                    <div class="text-center">
-                        <p id="drawer-name" class="text-sm font-bold text-white">—</p>
-                        <p id="drawer-gender" class="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5"></p>
+                <!-- View Mode -->
+                <div id="profile-view-mode">
+                    <div class="flex flex-col items-center gap-3 pb-4 sm:pb-5 border-b border-zinc-800/60">
+                        <div id="drawer-avatar" class="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-lg sm:text-xl font-bold text-white border-2 border-zinc-700 bg-zinc-800"></div>
+                        <div class="text-center">
+                            <p id="drawer-name" class="text-sm font-bold text-white">—</p>
+                            <p id="drawer-gender" class="text-[10px] text-zinc-500 uppercase tracking-widest mt-0.5"></p>
+                        </div>
+                        <div class="flex items-center gap-1.5 bg-zinc-900/30 border border-zinc-800 px-2.5 sm:px-3 py-1.5">
+                            <i data-lucide="hash" class="w-3 h-3 text-zinc-600"></i>
+                            <span id="drawer-uid" class="text-[11px] sm:text-xs font-mono text-zinc-300 tracking-widest">------</span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-1.5 bg-zinc-900/30 border border-zinc-800 px-2.5 sm:px-3 py-1.5">
-                        <i data-lucide="hash" class="w-3 h-3 text-zinc-600"></i>
-                        <span id="drawer-uid" class="text-[11px] sm:text-xs font-mono text-zinc-300 tracking-widest">------</span>
+                    <div class="space-y-1.5">
+                        <p class="text-[9px] uppercase tracking-widest text-zinc-600">Bio</p>
+                        <p id="drawer-bio" class="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">No bio provided.</p>
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-[9px] uppercase tracking-widest text-zinc-600">Social Links</p>
+                        <div id="drawer-socials" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-2 pt-2 border-t border-zinc-800/60">
+                        <p class="text-[9px] uppercase tracking-widest text-zinc-600">System</p>
+                        <div class="p-2.5 sm:p-3 bg-zinc-900/20 border border-zinc-800/80 flex justify-between items-center text-[11px] sm:text-xs">
+                            <span class="text-zinc-400">Data Synchronization</span>
+                            <input type="checkbox" checked class="w-3 h-3 sm:w-3.5 sm:h-3.5 accent-zinc-500">
+                        </div>
+                        <div id="drawer-setup-at" class="text-[10px] font-mono text-zinc-600 text-right"></div>
                     </div>
                 </div>
-                <div class="space-y-1.5">
-                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Bio</p>
-                    <p id="drawer-bio" class="text-[11px] sm:text-xs text-zinc-400 leading-relaxed">No bio provided.</p>
-                </div>
-                <div class="space-y-2">
-                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">Social Links</p>
-                    <div id="drawer-socials" class="space-y-2"></div>
-                </div>
-                <div class="space-y-2 pt-2 border-t border-zinc-800/60">
-                    <p class="text-[9px] uppercase tracking-widest text-zinc-600">System</p>
-                    <div class="p-2.5 sm:p-3 bg-zinc-900/20 border border-zinc-800/80 flex justify-between items-center text-[11px] sm:text-xs">
-                        <span class="text-zinc-400">Data Synchronization</span>
-                        <input type="checkbox" checked class="w-3 h-3 sm:w-3.5 sm:h-3.5 accent-zinc-500">
+
+                <!-- Edit Mode -->
+                <div id="profile-edit-mode" class="hidden space-y-4">
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Display Name</label>
+                            <input type="text" id="edit-name" maxlength="30"
+                                class="w-full bg-zinc-900/30 border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
+                                placeholder="Enter your name">
+                        </div>
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Gender</label>
+                            <select id="edit-gender"
+                                class="w-full bg-zinc-900/30 border border-zinc-800 px-3 py-2 text-xs text-white focus:outline-none focus:border-zinc-400 transition-colors">
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                                <option value="prefer-not">Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Bio</label>
+                            <textarea id="edit-bio" rows="3" maxlength="150"
+                                class="w-full bg-zinc-900/30 border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors resize-none"
+                                placeholder="Tell us about yourself..."></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Twitter/X</label>
+                            <input type="text" id="edit-twitter" maxlength="50"
+                                class="w-full bg-zinc-900/30 border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
+                                placeholder="@username">
+                        </div>
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Instagram</label>
+                            <input type="text" id="edit-instagram" maxlength="50"
+                                class="w-full bg-zinc-900/30 border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
+                                placeholder="@username">
+                        </div>
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">GitHub</label>
+                            <input type="text" id="edit-github" maxlength="50"
+                                class="w-full bg-zinc-900/30 border border-zinc-800 px-3 py-2 text-xs text-white placeholder-zinc-700 focus:outline-none focus:border-zinc-400 transition-colors"
+                                placeholder="username">
+                        </div>
                     </div>
-                    <div id="drawer-setup-at" class="text-[10px] font-mono text-zinc-600 text-right"></div>
                 </div>
             </div>
             <div class="px-4 sm:px-5 py-3 sm:py-4 border-t border-zinc-800/80 flex-shrink-0 space-y-2">
-                <button onclick="toggleSettingsModal(false)" class="w-full bg-white text-black text-[11px] sm:text-xs font-medium py-2 sm:py-2.5 tracking-[0.2em] uppercase cursor-pointer hover:bg-zinc-200 transition-colors">Close</button>
-                <button onclick="clearProfileAndGoSetup()" class="w-full border border-zinc-800 text-zinc-500 hover:text-red-400 hover:border-red-900/50 text-[11px] sm:text-xs py-2 uppercase cursor-pointer transition-colors flex items-center justify-center gap-1.5">
-                    <i data-lucide="log-out" class="w-3 h-3 sm:w-3.5 sm:h-3.5"></i> Reset Identity
-                </button>
+                <!-- View Mode Buttons -->
+                <div id="view-mode-buttons">
+                    <button onclick="toggleEditProfile(true)" class="w-full border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-400 text-[11px] sm:text-xs py-2 sm:py-2.5 uppercase cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+                        <i data-lucide="edit-2" class="w-3 h-3 sm:w-3.5 sm:h-3.5"></i> Edit Profile
+                    </button>
+                    <button onclick="toggleSettingsModal(false)" class="w-full bg-white text-black text-[11px] sm:text-xs font-medium py-2 sm:py-2.5 tracking-[0.2em] uppercase cursor-pointer hover:bg-zinc-200 transition-colors">Close</button>
+                    <button onclick="clearProfileAndGoSetup()" class="w-full border border-zinc-800 text-zinc-500 hover:text-red-400 hover:border-red-900/50 text-[11px] sm:text-xs py-2 uppercase cursor-pointer transition-colors flex items-center justify-center gap-1.5">
+                        <i data-lucide="log-out" class="w-3 h-3 sm:w-3.5 sm:h-3.5"></i> Reset Identity
+                    </button>
+                </div>
+                <!-- Edit Mode Buttons -->
+                <div id="edit-mode-buttons" class="hidden">
+                    <button onclick="saveProfile()" class="w-full bg-white text-black text-[11px] sm:text-xs font-medium py-2 sm:py-2.5 tracking-[0.2em] uppercase cursor-pointer hover:bg-zinc-200 transition-colors flex items-center justify-center gap-1.5">
+                        <i data-lucide="save" class="w-3 h-3 sm:w-3.5 sm:h-3.5"></i> Save Changes
+                    </button>
+                    <button onclick="toggleEditProfile(false)" class="w-full border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-400 text-[11px] sm:text-xs py-2 uppercase cursor-pointer transition-colors">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -681,6 +743,103 @@
             }
             loadProfile();
             loadContacts();
+        }
+
+        // ── Edit Profile Functions ─────────────────────────────────────
+        let currentProfile = null;
+
+        function toggleEditProfile(show) {
+            const viewMode = document.getElementById('profile-view-mode');
+            const editMode = document.getElementById('profile-edit-mode');
+            const viewButtons = document.getElementById('view-mode-buttons');
+            const editButtons = document.getElementById('edit-mode-buttons');
+
+            if (show) {
+                // Load current profile data into edit fields
+                const raw = localStorage.getItem('userProfile');
+                if (raw) {
+                    currentProfile = JSON.parse(raw);
+                    document.getElementById('edit-name').value = currentProfile.displayName || '';
+                    document.getElementById('edit-gender').value = currentProfile.gender || 'prefer-not';
+                    document.getElementById('edit-bio').value = currentProfile.bio || '';
+                    document.getElementById('edit-twitter').value = currentProfile.socialLinks?.twitter || '';
+                    document.getElementById('edit-instagram').value = currentProfile.socialLinks?.instagram || '';
+                    document.getElementById('edit-github').value = currentProfile.socialLinks?.github || '';
+                }
+
+                viewMode.classList.add('hidden');
+                editMode.classList.remove('hidden');
+                viewButtons.classList.add('hidden');
+                editButtons.classList.remove('hidden');
+            } else {
+                viewMode.classList.remove('hidden');
+                editMode.classList.add('hidden');
+                viewButtons.classList.remove('hidden');
+                editButtons.classList.add('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        async function saveProfile() {
+            const name = document.getElementById('edit-name').value.trim();
+            const gender = document.getElementById('edit-gender').value;
+            const bio = document.getElementById('edit-bio').value.trim();
+            const twitter = document.getElementById('edit-twitter').value.trim();
+            const instagram = document.getElementById('edit-instagram').value.trim();
+            const github = document.getElementById('edit-github').value.trim();
+
+            if (!name) {
+                toast('Please enter a display name', 'error', 3000);
+                return;
+            }
+
+            try {
+                const { data: { session } } = await db.auth.getSession();
+                if (!session) {
+                    toast('Not logged in', 'error', 3000);
+                    return;
+                }
+
+                // Update profile in Supabase
+                const { error } = await db.from('profiles').update({
+                    display_name: name,
+                    gender: gender,
+                    bio: bio,
+                    social_twitter: twitter,
+                    social_instagram: instagram,
+                    social_github: github
+                }).eq('id', session.user.id);
+
+                if (error) {
+                    console.error('Failed to update profile:', error);
+                    toast('Failed to save profile', 'error', 3000);
+                    return;
+                }
+
+                // Update localStorage
+                const updatedProfile = {
+                    ...currentProfile,
+                    displayName: name,
+                    gender: gender,
+                    bio: bio,
+                    socialLinks: {
+                        twitter: twitter,
+                        instagram: instagram,
+                        github: github
+                    }
+                };
+                localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+
+                // Re-render profile
+                renderProfile(updatedProfile);
+
+                toast('Profile updated successfully', 'success', 2000);
+                toggleEditProfile(false);
+
+            } catch(e) {
+                console.error('Error saving profile:', e);
+                toast('Failed to save profile', 'error', 3000);
+            }
         }
         guardAndLoad();
     </script>
