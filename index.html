@@ -1,425 +1,441 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZeroOne</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Syne & Space Grotesk - High-end Editorial Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="toast.js"></script>
-    
-    <style>
-        body {
-            font-family: 'Space Grotesk', sans-serif;
-            background-color: #0c0c0c;
-            overflow: hidden; /* Guarantees no scrolling */
-        }
-        .heading-font {
-            font-family: 'Syne', sans-serif;
-        }
-
-        /* Subtle icon pulse on input focus */
-        .input-box:focus-within .lucide {
-            transform: scale(1.15);
-            color: #ffffff;
-        }
-        .lucide {
-            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
-        }
-
-        /* Line animation for the right side panel */
-        @keyframes scan {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        .scan-line {
-            animation: scan 6s linear infinite;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZeroOne — Connect, Communicate, Collaborate</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="stylesheet" href="styles/global.css" />
+  <link rel="stylesheet" href="styles/login.css" />
+  <link href="https://unpkg.com/lucide@latest/dist/lucide.css" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="w-screen h-screen max-h-screen text-zinc-100 flex items-center justify-center m-0 p-0 select-none">
+<body>
 
-    <!-- Primary Layout Block (Fixed to Window Viewport) -->
-    <div class="w-full h-full flex flex-row overflow-hidden">
-        
-        <!-- LEFT PANEL: Strict Typographic Login (Takes 45% Width) -->
-        <div class="w-full md:w-[45%] xl:w-[40%] h-full bg-[#111111] p-10 lg:p-14 flex flex-col justify-between border-r border-zinc-800/80 z-10 overflow-hidden">
-            
-            <!-- Brand Mark -->
-            <div class="flex items-center justify-between flex-shrink-0">
-                <div class="flex items-center gap-3">
-                    <span class="heading-font text-xl font-extrabold tracking-tighter text-white">ZeroOne</span>
-                </div>
-                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            </div>
+<!-- ===== LOGIN PAGE ===== -->
+<div id="page-login" class="auth-page page-enter">
 
-            <!-- Main Interface Core -->
-            <div class="w-full max-w-sm mx-auto my-auto space-y-8">
-                <div class="space-y-2">
-                    <h1 id="form-title" class="heading-font text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-none">
-                        CREATE IDENTITY
-                    </h1>
-                    <p id="form-subtitle" class="text-[11px] tracking-wide text-zinc-500 uppercase">Establish new authorization node</p>
-                </div>
+  <!-- Background Orbs -->
+  <div class="auth-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
 
-                <!-- Mode Toggle -->
-                <div class="flex items-center justify-center gap-2 text-[10px] tracking-widest text-zinc-500 uppercase">
-                    <button id="signup-mode-btn" onclick="setMode('signup')" class="text-white hover:text-zinc-300 transition-colors cursor-pointer">Sign Up</button>
-                    <div class="w-[1px] h-3 bg-zinc-700"></div>
-                    <button id="login-mode-btn" onclick="setMode('login')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Login</button>
-                    <div class="w-[1px] h-3 bg-zinc-700"></div>
-                    <button id="forgot-mode-btn" onclick="setMode('forgot')" class="text-zinc-500 hover:text-white transition-colors cursor-pointer">Forgot</button>
-                </div>
+  <div class="auth-container">
 
-                <!-- Third-Party Single Sign-On (SSO) Grid -->
-                <div class="grid grid-cols-2 gap-3">
-                    <button class="group flex items-center justify-between border border-zinc-800 hover:border-zinc-400 bg-zinc-900/30 h-10 px-4 text-xs transition-all duration-200 cursor-pointer">
-                        <span class="text-zinc-400 group-hover:text-white transition-colors">Google</span>
-                        <i data-lucide="chrome" class="w-3.5 h-3.5 text-zinc-600 group-hover:text-white group-hover:rotate-12"></i>
-                    </button>
-                    <button class="group flex items-center justify-between border border-zinc-800 hover:border-zinc-400 bg-zinc-900/30 h-10 px-4 text-xs transition-all duration-200 cursor-pointer">
-                        <span class="text-zinc-400 group-hover:text-white transition-colors">Twitter</span>
-                        <i data-lucide="twitter" class="w-3.5 h-3.5 text-zinc-600 group-hover:text-white group-hover:-translate-y-0.5"></i>
-                    </button>
-                </div>
-
-                <!-- Typographic Divider -->
-                <div class="flex items-center justify-center gap-4 text-[10px] tracking-widest text-zinc-600 uppercase">
-                    <div class="h-[1px] flex-1 bg-zinc-800/60"></div>
-                    <span>OR SYSTEM KEY</span>
-                    <div class="h-[1px] flex-1 bg-zinc-800/60"></div>
-                </div>
-
-                <!-- Form Inputs -->
-                <form id="auth-form" class="space-y-5" onsubmit="handleAuth(event)">
-                    <!-- Key Input 1 -->
-                    <div class="space-y-1.5 group">
-                        <div class="flex justify-between text-[10px] uppercase tracking-widest text-zinc-500">
-                            <span>User Core Identifier</span>
-                        </div>
-                        <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-1.5">
-                            <input type="email" id="email" required autocomplete="off"
-                                class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8 tracking-wide"
-                                placeholder="root@kronos.network">
-                            <i data-lucide="hash" class="absolute right-0 w-3.5 h-3.5 text-zinc-600"></i>
-                        </div>
-                    </div>
-
-                    <!-- Key Input 2 -->
-                    <div id="password-field" class="space-y-1.5 group">
-                        <div class="flex justify-between text-[10px] uppercase tracking-widest text-zinc-500">
-                            <span>Pass Phrase</span>
-                        </div>
-                        <div class="input-box relative flex items-center border-b border-zinc-800 focus-within:border-white transition-colors duration-300 py-1.5">
-                            <input type="password" id="password" required
-                                class="w-full bg-transparent text-sm text-white placeholder-zinc-700 focus:outline-none pr-8 tracking-widest"
-                                placeholder="••••••••••••">
-                            <i data-lucide="shield-alert" class="absolute right-0 w-3.5 h-3.5 text-zinc-600"></i>
-                        </div>
-                    </div>
-
-                    <!-- Action Trigger -->
-                    <div class="pt-2">
-                        <button type="submit" id="submit-btn"
-                            class="group w-full bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-[0.2em] uppercase h-11 transition-all duration-300 flex items-center justify-between px-5 cursor-pointer">
-                            <span id="submit-text">Initialize Node</span>
-                            <i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Lower Layout Metadata -->
-            <div class="flex items-center justify-between text-[10px] font-mono text-zinc-600 tracking-wider flex-shrink-0">
-                <span>LOC: [NODE_09]</span>
-                <span>SECURE COMMS // LIVE</span>
-            </div>
+    <!-- Left Panel (Desktop) -->
+    <div class="auth-left">
+      <div class="auth-brand">
+        <div class="logo">
+          <div class="logo-icon">01</div>
+          <div class="logo-text">
+            <span class="zero">Zero</span><span class="one">One</span>
+          </div>
         </div>
+        <p class="auth-tagline">The future of communication is here. Crystal-clear calls, instant messages, seamless collaboration.</p>
+      </div>
 
-        <!-- RIGHT PANEL: Abstract Geometric Line Array (Takes Remaining Width) -->
-        <div class="hidden md:flex flex-1 h-full bg-[#0a0a0a] relative items-center justify-center overflow-hidden">
-            
-            <!-- Laser Scan Line Effect -->
-            <div class="scan-line absolute left-0 right-0 h-[2px] bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.08)_50%,transparent_100%)] z-10"></div>
-
-            <!-- Structural Linear Wire Grid Matrix -->
-            <div class="absolute inset-y-0 w-[80%] flex justify-between opacity-10">
-                <div class="w-[1px] h-full bg-white"></div>
-                <div class="w-[1px] h-full bg-white"></div>
-                <div class="w-[1px] h-full bg-white"></div>
-                <div class="w-[1px] h-full bg-white"></div>
-                <div class="w-[1px] h-full bg-white"></div>
-            </div>
-            
-            <!-- Central Geometric Focal Point -->
-            <div class="relative flex items-center justify-center w-96 h-96">
-                <!-- Concentric Static Thin Rings -->
-                <div class="absolute w-full h-full border border-zinc-900 rounded-full flex items-center justify-center">
-                    <div class="w-[75%] h-[75%] border border-zinc-900 rounded-full flex items-center justify-center">
-                        <div class="w-[50%] h-[50%] border border-zinc-900/60 rounded-full flex items-center justify-center">
-                            <!-- Animated Pulse Core Center Icon -->
-                            <i data-lucide="fingerprint" class="w-8 h-8 text-zinc-700 animate-pulse"></i>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Crosshair Accent Marks -->
-                <div class="absolute top-0 bottom-0 left-1/2 w-[1px] bg-zinc-900/40"></div>
-                <div class="absolute left-0 right-0 top-1/2 h-[1px] bg-zinc-900/40"></div>
-            </div>
-
-            <!-- Ambient Tech Spec Overlays -->
-            <div class="absolute bottom-10 right-10 flex flex-col text-right space-y-1">
-                <span class="text-[10px] font-mono text-zinc-700 uppercase tracking-widest">System Architecture v4.0</span>
-                <span class="text-[9px] font-mono text-zinc-800">MATRIX SHIELD PROTOCOL // ENCRYPTED</span>
-            </div>
+      <div class="auth-features">
+        <div class="auth-feature">
+          <div class="auth-feature-icon">
+            <i data-lucide="video"></i>
+          </div>
+          <div>
+            <div class="auth-feature-title">HD Video Calls</div>
+            <div class="auth-feature-desc">1080p video with AI noise cancellation</div>
+          </div>
         </div>
-
+        <div class="auth-feature">
+          <div class="auth-feature-icon">
+            <i data-lucide="message-square"></i>
+          </div>
+          <div>
+            <div class="auth-feature-title">Instant Messaging</div>
+            <div class="auth-feature-desc">Real-time chat with end-to-end encryption</div>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">
+            <i data-lucide="users"></i>
+          </div>
+          <div>
+            <div class="auth-feature-title">Group Rooms</div>
+            <div class="auth-feature-desc">Host meetings with up to 500 participants</div>
+          </div>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">
+            <i data-lucide="shield-check"></i>
+          </div>
+          <div>
+            <div class="auth-feature-title">Secure & Private</div>
+            <div class="auth-feature-desc">Military-grade encryption on all communications</div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Initialize Lucide Icons and Supabase Auth -->
-    <script>
-        lucide.createIcons();
+    <!-- Right Panel — Auth Forms -->
+    <div class="auth-right">
+      <div class="auth-card">
 
-        // Supabase Configuration - Replace with your actual credentials
-        const SUPABASE_URL = 'https://belblvybuefysawyoocv.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGJsdnlidWVmeXNhd3lvb2N2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNTgyMDAsImV4cCI6MjA5NTkzNDIwMH0.F7udCTa8bbmSiNg0Qx_xMZX7mrl-JifU44SSKvRQSk4';
+        <!-- Mobile Logo -->
+        <div class="auth-mobile-logo">
+          <div class="logo">
+            <div class="logo-icon">01</div>
+            <div class="logo-text">
+              <span class="zero">Zero</span><span class="one">One</span>
+            </div>
+          </div>
+        </div>
 
-        // Initialize Supabase client
-        let supabaseClient;
-        
-        function initSupabase() {
-            try {
-                console.log('window.supabase:', window.supabase);
-                if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    console.log('Supabase client initialized successfully:', supabaseClient);
-                    console.log('Supabase auth available:', supabaseClient.auth);
-                } else {
-                    console.error('Supabase not loaded yet. window.supabase:', window.supabase);
-                }
-            } catch (error) {
-                console.error('Supabase initialization failed:', error);
-            }
-        }
+        <!-- Tab Switcher -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+          <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+        </div>
 
-        // Initialize when script loads
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initSupabase);
-        } else {
-            initSupabase();
-        }
+        <!-- LOGIN FORM -->
+        <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+          <h2 class="auth-form-title">Welcome back</h2>
+          <p class="auth-form-sub">Sign in to continue to ZeroOne</p>
 
-        // Current mode: 'login' or 'signup'
-        let currentMode = 'login';
+          <div class="input-group">
+            <label>Email address</label>
+            <div class="input-wrap">
+              <i class="input-icon" data-lucide="mail" style="width:16px;height:16px"></i>
+              <input type="email" id="login-email" placeholder="you@example.com" required />
+            </div>
+          </div>
 
-        function setMode(mode) {
-            currentMode = mode;
-            const loginBtn = document.getElementById('login-mode-btn');
-            const signupBtn = document.getElementById('signup-mode-btn');
-            const forgotBtn = document.getElementById('forgot-mode-btn');
-            const title = document.getElementById('form-title');
-            const subtitle = document.getElementById('form-subtitle');
-            const submitText = document.getElementById('submit-text');
-            const passwordField = document.getElementById('password-field');
-            const passwordInput = document.getElementById('password');
+          <div class="input-group">
+            <label>Password</label>
+            <div class="input-wrap">
+              <i class="input-icon" data-lucide="lock" style="width:16px;height:16px"></i>
+              <input type="password" id="login-password" placeholder="••••••••" required />
+              <button type="button" class="input-action" onclick="togglePassword('login-password', this)">
+                <i data-lucide="eye" style="width:16px;height:16px"></i>
+              </button>
+            </div>
+            <button type="button" class="forgot-link" onclick="showForgotPassword()">Forgot password?</button>
+          </div>
 
-            // Reset all buttons to default
-            loginBtn.classList.remove('text-white');
-            loginBtn.classList.add('text-zinc-500');
-            signupBtn.classList.remove('text-white');
-            signupBtn.classList.add('text-zinc-500');
-            forgotBtn.classList.remove('text-white');
-            forgotBtn.classList.add('text-zinc-500');
+          <button type="submit" class="btn btn-primary w-full" id="btn-login">
+            <span>Sign In</span>
+          </button>
 
-            if (mode === 'login') {
-                loginBtn.classList.remove('text-zinc-500');
-                loginBtn.classList.add('text-white');
-                title.textContent = 'ENTER PLATFORM';
-                subtitle.textContent = 'Provide credentials or authorization node';
-                submitText.textContent = 'Execute Connection';
-                passwordField.style.display = 'block';
-                passwordInput.required = true;
-            } else if (mode === 'signup') {
-                signupBtn.classList.remove('text-zinc-500');
-                signupBtn.classList.add('text-white');
-                title.textContent = 'CREATE IDENTITY';
-                subtitle.textContent = 'Establish new authorization node';
-                submitText.textContent = 'Initialize Node';
-                passwordField.style.display = 'block';
-                passwordInput.required = true;
-            } else if (mode === 'forgot') {
-                forgotBtn.classList.remove('text-zinc-500');
-                forgotBtn.classList.add('text-white');
-                title.textContent = 'RESET CREDENTIALS';
-                subtitle.textContent = 'Enter email to receive recovery link';
-                submitText.textContent = 'Send Recovery';
-                passwordField.style.display = 'none';
-                passwordInput.required = false;
-            }
-        }
+          <div class="divider-text">or continue with</div>
 
-        async function handleAuth(event) {
-            event.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const submitButton = document.getElementById('submit-btn');
-            
-            // Disable button and show loading state
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<span>Processing...</span>';
+          <div class="social-btns">
+            <button type="button" class="btn btn-ghost social-btn" onclick="handleGoogleLogin()">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Google
+            </button>
+            <button type="button" class="btn btn-ghost social-btn" onclick="handleGithubLogin()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.38.6.11.82-.26.82-.58v-2.03c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.05.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              GitHub
+            </button>
+          </div>
+        </form>
 
-            try {
-                // Ensure Supabase is initialized
-                if (!supabaseClient) {
-                    initSupabase();
-                    if (!supabaseClient) {
-                        throw new Error('Supabase client not initialized. Please refresh the page.');
-                    }
-                }
+        <!-- REGISTER FORM -->
+        <form id="form-register" class="auth-form hidden" onsubmit="handleRegister(event)">
+          <h2 class="auth-form-title">Create account</h2>
+          <p class="auth-form-sub">Join millions on ZeroOne today</p>
 
-                if (currentMode === 'login') {
-                    await handleLoginAuth(email, password, submitButton);
-                } else if (currentMode === 'signup') {
-                    await handleSignupAuth(email, password, submitButton);
-                } else if (currentMode === 'forgot') {
-                    await handleForgotPassword(email, submitButton);
-                }
+          <div class="input-group">
+            <label>Full name</label>
+            <div class="input-wrap">
+              <i class="input-icon" data-lucide="user" style="width:16px;height:16px"></i>
+              <input type="text" id="reg-name" placeholder="John Doe" required />
+            </div>
+          </div>
 
-            } catch (error) {
-                console.error('Auth error:', error);
-                toast(error.message || 'Authentication failed. Please check your credentials.', 'error', 4000);
-                
-                // Re-enable button
-                submitButton.disabled = false;
-                let submitText = 'Execute Connection';
-                if (currentMode === 'signup') submitText = 'Initialize Node';
-                if (currentMode === 'forgot') submitText = 'Send Recovery';
-                submitButton.innerHTML = `<span>${submitText}</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>`;
-                lucide.createIcons();
-            }
-        }
+          <div class="input-group">
+            <label>Email address</label>
+            <div class="input-wrap">
+              <i class="input-icon" data-lucide="mail" style="width:16px;height:16px"></i>
+              <input type="email" id="reg-email" placeholder="you@example.com" required />
+            </div>
+          </div>
 
-        async function handleLoginAuth(email, password, submitButton) {
-            console.log('Attempting login with:', email);
-            console.log('Supabase client:', supabaseClient);
+          <div class="input-group">
+            <label>Password</label>
+            <div class="input-wrap">
+              <i class="input-icon" data-lucide="lock" style="width:16px;height:16px"></i>
+              <input type="password" id="reg-password" placeholder="Min. 8 characters" required minlength="8" />
+              <button type="button" class="input-action" onclick="togglePassword('reg-password', this)">
+                <i data-lucide="eye" style="width:16px;height:16px"></i>
+              </button>
+            </div>
+          </div>
 
-            // Sign in with Supabase
-            const { data, error } = await supabaseClient.auth.signInWithPassword({
-                email: email,
-                password: password
-            });
+          <div class="input-group">
+            <label>Confirm password</label>
+            <div class="input-wrap">
+              <i class="input-icon" data-lucide="lock" style="width:16px;height:16px"></i>
+              <input type="password" id="reg-confirm" placeholder="Repeat password" required />
+            </div>
+          </div>
 
-            if (error) {
-                throw error;
-            }
+          <div class="terms-check">
+            <input type="checkbox" id="terms" required />
+            <label for="terms">I agree to the <a href="#" class="text-accent">Terms of Service</a> and <a href="#" class="text-accent">Privacy Policy</a></label>
+          </div>
 
-            // Check if user has profile setup
-            const { data: profile } = await supabaseClient
-                .from('profiles')
-                .select('*')
-                .eq('id', data.user.id)
-                .single();
+          <button type="submit" class="btn btn-primary w-full" id="btn-register">
+            <span>Create Account</span>
+          </button>
 
-            // Redirect to profile setup if no profile exists, otherwise to dashboard
-            if (!profile) {
-                window.location.href = 'profile-setup.html';
-            } else {
-                window.location.href = 'dashbord.html';
-            }
-        }
+          <div class="divider-text">or continue with</div>
 
-        async function handleSignupAuth(email, password, submitButton) {
-            console.log('Attempting signup with:', email);
+          <div class="social-btns">
+            <button type="button" class="btn btn-ghost social-btn" onclick="handleGoogleLogin()">
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Google
+            </button>
+            <button type="button" class="btn btn-ghost social-btn" onclick="handleGithubLogin()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.38.6.11.82-.26.82-.58v-2.03c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 3-.4c1.02 0 2.05.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+              GitHub
+            </button>
+          </div>
+        </form>
 
-            // Sign up with Supabase
-            const { data, error } = await supabaseClient.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    emailRedirectTo: window.location.origin + '/confirm-email.html'
-                }
-            });
+      </div>
+    </div>
 
-            if (error) {
-                throw error;
-            }
+  </div>
+</div>
 
-            // Check if email confirmation is required
-            if (data.user && !data.session) {
-                // Store email so confirm page can display it and resend if needed
-                sessionStorage.setItem('pendingConfirmEmail', email);
-                window.location.href = 'confirm-email.html';
-                return;
-            }
+<!-- ===== PROFILE SETUP PAGE ===== -->
+<div id="page-profile-setup" class="auth-page hidden page-enter">
 
-            // If auto-confirmed (email confirmation disabled in Supabase), go straight to profile setup
-            if (data.session) {
-                window.location.href = 'profile-setup.html';
-            }
-        }
+  <div class="auth-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+  </div>
 
-        async function handleForgotPassword(email, submitButton) {
-            console.log('Attempting password reset for:', email);
+  <div class="setup-container">
+    <div class="setup-header">
+      <div class="logo">
+        <div class="logo-icon">01</div>
+        <div class="logo-text">
+          <span class="zero">Zero</span><span class="one">One</span>
+        </div>
+      </div>
+      <h1 class="setup-title">Set up your profile</h1>
+      <p class="setup-sub">Tell us a bit about yourself to personalize your experience</p>
+    </div>
 
-            // Send password reset email with Supabase
-            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + '/confirm-email.html'
-            });
+    <!-- Progress Steps -->
+    <div class="setup-steps">
+      <div class="setup-step active" id="step-dot-1">
+        <div class="step-dot"><span>1</span></div>
+        <div class="step-label">Photo</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="setup-step" id="step-dot-2">
+        <div class="step-dot"><span>2</span></div>
+        <div class="step-label">Info</div>
+      </div>
+      <div class="step-line"></div>
+      <div class="setup-step" id="step-dot-3">
+        <div class="step-dot"><span>3</span></div>
+        <div class="step-label">Preferences</div>
+      </div>
+    </div>
 
-            if (error) {
-                throw error;
-            }
+    <!-- Step 1: Photo -->
+    <div class="setup-step-content" id="setup-step-1">
+      <div class="avatar-upload-area">
+        <div class="avatar-upload-preview" id="avatar-preview">
+          <span id="avatar-initials">?</span>
+          <img id="avatar-img" src="" alt="" class="hidden" />
+        </div>
+        <div class="avatar-upload-actions">
+          <label class="btn btn-secondary" for="avatar-file">
+            <i data-lucide="upload" style="width:16px;height:16px"></i>
+            Upload photo
+          </label>
+          <input type="file" id="avatar-file" accept="image/*" class="hidden" onchange="previewAvatar(event)" />
+          <button class="btn btn-ghost" onclick="generateAvatar()">
+            <i data-lucide="sparkles" style="width:16px;height:16px"></i>
+            Generate avatar
+          </button>
+        </div>
+        <p class="text-secondary text-sm text-center">JPG, PNG or GIF — Max 5MB</p>
+      </div>
+      <button class="btn btn-primary w-full" onclick="nextSetupStep(2)">Continue</button>
+    </div>
 
-            toast('Password reset link sent! Please check your email.', 'success', 5000);
-            submitButton.disabled = false;
-            submitButton.innerHTML = '<span>Send Recovery</span><i data-lucide="arrow-up-right" class="w-4 h-4 text-black group-hover:rotate-45 transition-transform duration-300"></i>';
-            lucide.createIcons();
-            
-            // Switch back to login mode
-            setMode('login');
-        }
+    <!-- Step 2: Info -->
+    <div class="setup-step-content hidden" id="setup-step-2">
+      <div class="setup-form">
+        <div class="input-group">
+          <label>Display name</label>
+          <div class="input-wrap">
+            <i class="input-icon" data-lucide="user" style="width:16px;height:16px"></i>
+            <input type="text" id="setup-displayname" placeholder="How should people call you?" />
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Username</label>
+          <div class="input-wrap">
+            <i class="input-icon" data-lucide="at-sign" style="width:16px;height:16px"></i>
+            <input type="text" id="setup-username" placeholder="unique_username" />
+          </div>
+          <span class="text-xs text-muted">This will be your unique @handle</span>
+        </div>
+        <div class="input-group">
+          <label>Bio <span class="text-muted">(optional)</span></label>
+          <textarea id="setup-bio" placeholder="Tell people a little about yourself..." rows="3" style="padding:11px 14px;resize:none;"></textarea>
+        </div>
+        <div class="input-group">
+          <label>Status</label>
+          <div class="status-options">
+            <button type="button" class="status-opt active" onclick="selectStatus(this, 'online')">
+              <span class="online-dot" style="position:static;width:10px;height:10px;border:none;flex-shrink:0"></span>
+              Online
+            </button>
+            <button type="button" class="status-opt" onclick="selectStatus(this, 'busy')">
+              <span class="online-dot busy" style="position:static;width:10px;height:10px;border:none;flex-shrink:0"></span>
+              Busy
+            </button>
+            <button type="button" class="status-opt" onclick="selectStatus(this, 'away')">
+              <span class="online-dot away" style="position:static;width:10px;height:10px;border:none;flex-shrink:0"></span>
+              Away
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="setup-nav">
+        <button class="btn btn-ghost" onclick="nextSetupStep(1)">Back</button>
+        <button class="btn btn-primary" onclick="nextSetupStep(3)">Continue</button>
+      </div>
+    </div>
 
-        // Check if user is already logged in
-        async function checkSession() {
-            try {
-                if (!supabaseClient) return;
+    <!-- Step 3: Preferences -->
+    <div class="setup-step-content hidden" id="setup-step-3">
+      <div class="prefs-grid">
+        <div class="pref-card active" onclick="togglePref(this, 'notifications')">
+          <div class="pref-icon"><i data-lucide="bell" style="width:22px;height:22px"></i></div>
+          <div class="pref-title">Notifications</div>
+          <div class="pref-desc">Get alerts for messages and calls</div>
+          <div class="pref-check"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+        </div>
+        <div class="pref-card active" onclick="togglePref(this, 'sounds')">
+          <div class="pref-icon"><i data-lucide="volume-2" style="width:22px;height:22px"></i></div>
+          <div class="pref-title">Sounds</div>
+          <div class="pref-desc">Play sounds for events</div>
+          <div class="pref-check"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+        </div>
+        <div class="pref-card" onclick="togglePref(this, 'readReceipts')">
+          <div class="pref-icon"><i data-lucide="check-check" style="width:22px;height:22px"></i></div>
+          <div class="pref-title">Read Receipts</div>
+          <div class="pref-desc">Show when you've read messages</div>
+          <div class="pref-check"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+        </div>
+        <div class="pref-card active" onclick="togglePref(this, 'hd')">
+          <div class="pref-icon"><i data-lucide="monitor" style="width:22px;height:22px"></i></div>
+          <div class="pref-title">HD Video</div>
+          <div class="pref-desc">Enable 1080p video quality</div>
+          <div class="pref-check"><i data-lucide="check" style="width:14px;height:14px"></i></div>
+        </div>
+      </div>
+      <div class="setup-nav">
+        <button class="btn btn-ghost" onclick="nextSetupStep(2)">Back</button>
+        <button class="btn btn-primary" id="btn-finish-setup" onclick="finishSetup()">
+          <i data-lucide="rocket" style="width:16px;height:16px"></i>
+          Let's go!
+        </button>
+      </div>
+    </div>
 
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                
-                if (session) {
-                    // User is logged in, check profile
-                    const { data: profile } = await supabaseClient
-                        .from('profiles')
-                        .select('*')
-                        .eq('id', session.user.id)
-                        .single();
+  </div>
+</div>
 
-                    if (!profile) {
-                        window.location.href = 'profile-setup.html';
-                    } else {
-                        window.location.href = 'dashbord.html';
-                    }
-                }
-            } catch (error) {
-                console.error('Session check error:', error);
-            }
-        }
+<!-- Forgot Password Modal -->
+<div id="modal-forgot" class="modal-overlay hidden">
 
-        // Run session check on page load
-        checkSession();
+<!-- Firebase Setup Guide (shown when providers not enabled) -->
+<div id="modal-setup-guide" class="modal-overlay hidden">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 class="modal-title" style="display:flex;align-items:center;gap:8px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Firebase Setup Required
+      </h3>
+      <button class="modal-close" onclick="document.getElementById('modal-setup-guide').classList.add('hidden')">
+        <i data-lucide="x" style="width:18px;height:18px"></i>
+      </button>
+    </div>
+    <p class="text-secondary text-sm" style="margin-bottom:20px">Google/GitHub sign-in isn't enabled yet. Follow these steps in the Firebase Console:</p>
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px">
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg-tertiary);border-radius:var(--radius-md)">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">1</div>
+        <div><div style="font-weight:600;font-size:13px;margin-bottom:4px">Enable Authentication Providers</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Firebase Console → <strong>Authentication</strong> → <strong>Sign-in method</strong> → Enable <strong>Google</strong> and <strong>GitHub</strong></div></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg-tertiary);border-radius:var(--radius-md)">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">2</div>
+        <div><div style="font-weight:600;font-size:13px;margin-bottom:4px">Add Authorized Domain</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Firebase Console → Authentication → <strong>Settings</strong> → <strong>Authorized domains</strong> → Add <code style="background:var(--bg-card);padding:1px 5px;border-radius:3px">127.0.0.1</code> and <code style="background:var(--bg-card);padding:1px 5px;border-radius:3px">localhost</code></div></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;background:var(--bg-tertiary);border-radius:var(--radius-md)">
+        <div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">3</div>
+        <div><div style="font-weight:600;font-size:13px;margin-bottom:4px">Deploy Firestore Rules</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Firebase Console → <strong>Firestore Database</strong> → Create database → Copy rules from <code style="background:var(--bg-card);padding:1px 5px;border-radius:3px">README.md</code></div></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modal-setup-guide').classList.add('hidden')">Close</button>
+      <a href="https://console.firebase.google.com/project/zeroone-16e62/authentication/providers" target="_blank" class="btn btn-primary" style="flex:1;text-decoration:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        Open Firebase Console
+      </a>
+    </div>
+  </div>
+</div>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Reset Password</h3>
+      <button class="modal-close" onclick="document.getElementById('modal-forgot').classList.add('hidden')">
+        <i data-lucide="x" style="width:18px;height:18px"></i>
+      </button>
+    </div>
+    <p class="text-secondary text-sm" style="margin-bottom:20px">Enter your email and we'll send you a reset link.</p>
+    <div class="input-group" style="margin-bottom:20px">
+      <div class="input-wrap">
+        <i class="input-icon" data-lucide="mail" style="width:16px;height:16px"></i>
+        <input type="email" id="forgot-email" placeholder="you@example.com" />
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" style="flex:1" onclick="document.getElementById('modal-forgot').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="handleForgotPassword()">Send Reset Link</button>
+    </div>
+  </div>
+</div>
 
-        // ── Auth guard: redirect logged-in users away from login page ─
-        // (handled inside checkSession above — if session exists, goes to dashboard)
-    </script>
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/profile-setup.js"></script>
+
+<script>
+  // Initialize Lucide icons
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+  });
+</script>
 </body>
 </html>

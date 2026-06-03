@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZeroOne</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="stylesheet" href="styles/global.css" />
+  <link rel="stylesheet" href="styles/dashboard.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<div class="dashboard" id="dashboard">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon" style="width:40px;height:40px;font-size:13px">01</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-item active" id="nav-home" data-tooltip="Home" data-page="home" onclick="navigate('home')">
+        <i data-lucide="layout-dashboard"></i>
+      </div>
+      <div class="sidebar-item" id="nav-messages" data-tooltip="Messages" data-page="messages" onclick="navigate('messages')">
+        <i data-lucide="message-square"></i>
+        <div class="sidebar-badge hidden" id="badge-messages"></div>
+      </div>
+      <div class="sidebar-item" id="nav-calls" data-tooltip="Calls" data-page="calls" onclick="navigate('calls')">
+        <i data-lucide="phone"></i>
+      </div>
+      <div class="sidebar-item" id="nav-contacts" data-tooltip="Contacts" data-page="contacts" onclick="navigate('contacts')">
+        <i data-lucide="users"></i>
+      </div>
+      <div class="sidebar-item" id="nav-groups" data-tooltip="Groups" data-page="groups" onclick="navigate('groups')">
+        <i data-lucide="users-round"></i>
+      </div>
+      <div class="sidebar-item" id="nav-notifications" data-tooltip="Notifications" data-page="notifications" onclick="navigate('notifications')">
+        <i data-lucide="bell"></i>
+        <div class="sidebar-badge hidden" id="badge-notifs"></div>
+      </div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-item" id="nav-settings" data-tooltip="Settings" data-page="settings" onclick="navigate('settings')">
+        <i data-lucide="settings"></i>
+      </div>
+      <div class="sidebar-item sidebar-avatar" data-tooltip="Profile" onclick="navigate('profile')">
+        <div class="avatar avatar-sm" id="sidebar-avatar-el"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN AREA ===== -->
+  <div class="main-content" id="main-content">
+
+    <!-- HOME PAGE -->
+    <div id="page-home" class="content-area home-page page-enter">
+      <div class="section-header">
+        <div>
+          <h1 class="contacts-title" id="home-greeting">Good morning 👋</h1>
+          <p class="text-secondary" style="margin-top:4px;font-size:14px">Here's what's happening today</p>
+        </div>
+        <button class="btn btn-primary" onclick="openNewMeetingModal()">
+          <i data-lucide="video" style="width:16px;height:16px"></i>
+          New Meeting
+        </button>
+      </div>
+
+      <div class="home-grid">
+        <div class="home-card" onclick="openNewMeetingModal()">
+          <div class="home-card-icon purple"><i data-lucide="video" style="width:22px;height:22px"></i></div>
+          <div>
+            <div class="home-card-title">New Meeting</div>
+            <div class="home-card-desc">Start an instant meeting</div>
+          </div>
+        </div>
+        <div class="home-card" onclick="openJoinModal()">
+          <div class="home-card-icon blue"><i data-lucide="log-in" style="width:22px;height:22px"></i></div>
+          <div>
+            <div class="home-card-title">Join Meeting</div>
+            <div class="home-card-desc">Enter a meeting code</div>
+          </div>
+        </div>
+        <div class="home-card" onclick="openScheduleModal()">
+          <div class="home-card-icon green"><i data-lucide="calendar" style="width:22px;height:22px"></i></div>
+          <div>
+            <div class="home-card-title">Schedule</div>
+            <div class="home-card-desc">Plan a future meeting</div>
+          </div>
+        </div>
+        <div class="home-card" onclick="openShareScreen()">
+          <div class="home-card-icon yellow"><i data-lucide="monitor" style="width:22px;height:22px"></i></div>
+          <div>
+            <div class="home-card-title">Share Screen</div>
+            <div class="home-card-desc">Present to others</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Upcoming Meetings</div>
+        <button class="btn btn-ghost" style="font-size:13px" onclick="navigate('calls')">View all</button>
+      </div>
+      <div id="upcoming-meetings-list">
+        <div class="empty-state" style="padding:32px 20px">
+          <div class="empty-icon"><i data-lucide="calendar" style="width:28px;height:28px"></i></div>
+          <div class="empty-title">No upcoming meetings</div>
+          <div class="empty-desc">Schedule a meeting to see it here</div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-top:20px">
+        <div class="section-title">Recent Activity</div>
+      </div>
+      <div id="recent-activity-list">
+        <div class="empty-state" style="padding:32px 20px">
+          <div class="empty-icon"><i data-lucide="activity" style="width:28px;height:28px"></i></div>
+          <div class="empty-title">No recent activity</div>
+          <div class="empty-desc">Your call and message history will appear here</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MESSAGES PAGE -->
+    <div id="page-messages" class="content-area hidden" style="flex-direction:row;overflow:hidden">
+      <!-- Conversations Panel -->
+      <div class="panel" id="chats-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Messages</h2>
+          <div class="panel-actions">
+            <button class="btn-icon btn-ghost" onclick="openNewChat()" data-tooltip="New chat">
+              <i data-lucide="edit" style="width:17px;height:17px"></i>
+            </button>
+          </div>
+        </div>
+        <div class="panel-search">
+          <div class="input-wrap">
+            <i class="input-icon" data-lucide="search" style="width:14px;height:14px"></i>
+            <input type="text" placeholder="Search conversations..." oninput="filterChats(this.value)" />
+          </div>
+        </div>
+        <div class="panel-list" id="chat-list"></div>
+      </div>
+
+      <!-- Chat View or Empty -->
+      <div id="chat-area" class="content-area" style="flex:1">
+        <div class="empty-state" id="chat-empty">
+          <div class="empty-icon"><i data-lucide="message-square" style="width:32px;height:32px"></i></div>
+          <div class="empty-title">Select a conversation</div>
+          <div class="empty-desc">Choose a chat from the left or start a new one</div>
+          <button class="btn btn-primary" onclick="openNewChat()">
+            <i data-lucide="plus" style="width:16px;height:16px"></i>
+            New Chat
+          </button>
+        </div>
+
+        <div id="chat-view" class="content-area hidden" style="overflow:hidden">
+          <!-- Chat Header -->
+          <div class="chat-header" id="chat-header">
+            <div class="chat-header-left">
+              <div class="avatar-wrap">
+                <div class="avatar avatar-md" id="chat-header-avatar"></div>
+                <span class="online-dot" id="chat-header-dot"></span>
+              </div>
+              <div>
+                <div class="chat-header-name" id="chat-header-name">—</div>
+                <div class="chat-header-sub" id="chat-header-sub">—</div>
+              </div>
+            </div>
+            <div class="chat-header-actions">
+              <button class="btn-icon btn-ghost" onclick="startAudioCall()" data-tooltip="Audio call">
+                <i data-lucide="phone" style="width:18px;height:18px"></i>
+              </button>
+              <button class="btn-icon btn-ghost" onclick="startVideoCall()" data-tooltip="Video call">
+                <i data-lucide="video" style="width:18px;height:18px"></i>
+              </button>
+              <button class="btn-icon btn-ghost" onclick="toggleInfoPanel()" data-tooltip="Info">
+                <i data-lucide="info" style="width:18px;height:18px"></i>
+              </button>
+              <button class="btn-icon btn-ghost" onclick="openChatMenu()" data-tooltip="More">
+                <i data-lucide="more-vertical" style="width:18px;height:18px"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Messages -->
+          <div class="messages-area" id="messages-area"></div>
+
+          <!-- Message Input -->
+          <div class="message-input-area">
+            <div class="message-input-wrap" id="msg-input-wrap">
+              <div class="reply-preview hidden" id="reply-preview">
+                <div class="reply-bar"></div>
+                <div class="reply-content">
+                  <div class="reply-name" id="reply-name"></div>
+                  <div class="reply-text" id="reply-text"></div>
+                </div>
+                <div class="reply-close" onclick="cancelReply()">
+                  <i data-lucide="x" style="width:12px;height:12px"></i>
+                </div>
+              </div>
+              <div class="message-input-top">
+                <div class="message-input-actions">
+                  <button class="msg-action-btn" onclick="triggerFileUpload()" data-tooltip="Attach file">
+                    <i data-lucide="paperclip" style="width:18px;height:18px"></i>
+                  </button>
+                  <button class="msg-action-btn" onclick="triggerImageUpload()" data-tooltip="Send image">
+                    <i data-lucide="image" style="width:18px;height:18px"></i>
+                  </button>
+                </div>
+                <textarea class="message-textarea" id="msg-textarea" placeholder="Type a message..." rows="1"
+                  onkeydown="handleMsgKeydown(event)"
+                  oninput="handleMsgInput(this)"></textarea>
+                <div class="message-input-actions">
+                  <button class="msg-action-btn" onclick="toggleEmojiPicker()" data-tooltip="Emoji" id="emoji-btn">
+                    <i data-lucide="smile" style="width:18px;height:18px"></i>
+                  </button>
+                  <button class="msg-action-btn" id="voice-msg-btn" onclick="toggleVoiceRecording()" data-tooltip="Voice message">
+                    <i data-lucide="mic" style="width:18px;height:18px"></i>
+                  </button>
+                  <button class="msg-send-btn" id="send-btn" onclick="sendMessage()" disabled>
+                    <i data-lucide="send" style="width:16px;height:16px"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <input type="file" id="file-input" class="hidden" onchange="handleFileUpload(event)" />
+            <input type="file" id="image-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)" />
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Info Panel -->
+      <div class="info-panel collapsed" id="info-panel">
+        <div class="info-panel-header">
+          <span class="panel-title">Details</span>
+          <button class="btn-icon btn-ghost" onclick="toggleInfoPanel()">
+            <i data-lucide="x" style="width:16px;height:16px"></i>
+          </button>
+        </div>
+        <div class="info-panel-body" id="info-panel-body"></div>
+      </div>
+    </div>
+
+    <!-- CALLS PAGE -->
+    <div id="page-calls" class="content-area hidden" style="flex-direction:row;overflow:hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Calls</h2>
+          <div class="panel-actions">
+            <button class="btn-icon btn-ghost" onclick="openDialer()" data-tooltip="Dial number">
+              <i data-lucide="dialpad" style="width:17px;height:17px"></i>
+            </button>
+          </div>
+        </div>
+        <div class="panel-search">
+          <div class="input-wrap">
+            <i class="input-icon" data-lucide="search" style="width:14px;height:14px"></i>
+            <input type="text" placeholder="Search calls..." oninput="filterCalls(this.value)" />
+          </div>
+        </div>
+        <div class="panel-list" id="call-history-list"></div>
+      </div>
+      <div id="calls-main" class="content-area" style="flex:1">
+        <div class="empty-state">
+          <div class="empty-icon"><i data-lucide="phone" style="width:32px;height:32px"></i></div>
+          <div class="empty-title">No active call</div>
+          <div class="empty-desc">Start a new call or select from history</div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn btn-primary" onclick="startAudioCall()">
+              <i data-lucide="phone" style="width:16px;height:16px"></i>
+              Audio Call
+            </button>
+            <button class="btn btn-secondary" onclick="startVideoCall()">
+              <i data-lucide="video" style="width:16px;height:16px"></i>
+              Video Call
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTACTS PAGE -->
+    <div id="page-contacts" class="content-area hidden">
+      <div class="contacts-page">
+        <div class="contacts-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h1 class="contacts-title">Contacts</h1>
+          <button class="btn btn-primary" onclick="openAddContactModal()">
+            <i data-lucide="user-plus" style="width:16px;height:16px"></i>
+            Add Contact
+          </button>
+        </div>
+        <div class="panel-search" style="padding:0 0 20px">
+          <div class="input-wrap">
+            <i class="input-icon" data-lucide="search" style="width:14px;height:14px"></i>
+            <input type="text" placeholder="Search contacts..." oninput="filterContacts(this.value)" />
+          </div>
+        </div>
+        <div class="contacts-grid" id="contacts-grid"></div>
+      </div>
+    </div>
+
+    <!-- GROUPS PAGE -->
+    <div id="page-groups" class="content-area hidden" style="flex-direction:row;overflow:hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Groups</h2>
+          <div class="panel-actions">
+            <button class="btn-icon btn-ghost" onclick="openCreateGroupModal()" data-tooltip="Create group">
+              <i data-lucide="plus" style="width:17px;height:17px"></i>
+            </button>
+          </div>
+        </div>
+        <div class="panel-search">
+          <div class="input-wrap">
+            <i class="input-icon" data-lucide="search" style="width:14px;height:14px"></i>
+            <input type="text" placeholder="Search groups..." />
+          </div>
+        </div>
+        <div class="panel-list" id="groups-list"></div>
+      </div>
+      <div class="content-area" style="flex:1">
+        <div class="empty-state">
+          <div class="empty-icon"><i data-lucide="users-round" style="width:32px;height:32px"></i></div>
+          <div class="empty-title">Select a group</div>
+          <div class="empty-desc">Or create a new group to start collaborating</div>
+          <button class="btn btn-primary" onclick="openCreateGroupModal()">
+            <i data-lucide="plus" style="width:16px;height:16px"></i>
+            Create Group
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICATIONS PAGE -->
+    <div id="page-notifications" class="content-area hidden">
+      <div class="panel-header" style="border-bottom:1px solid var(--border);padding:16px 20px">
+        <h2 class="panel-title">Notifications</h2>
+        <button class="btn btn-ghost" style="font-size:13px" onclick="markAllRead()">Mark all read</button>
+      </div>
+      <div id="notifications-list" class="notif-panel-body"></div>
+    </div>
+
+    <!-- SETTINGS PAGE -->
+    <div id="page-settings" class="content-area hidden">
+      <div class="settings-page">
+        <h1 class="settings-title">Settings</h1>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Account</div>
+          <div class="settings-item" onclick="navigate('profile')" style="cursor:pointer">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="user" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Profile</div>
+                <div class="settings-item-desc">Update your name, photo, and bio</div>
+              </div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-muted)"></i>
+          </div>
+          <div class="settings-item" onclick="openChangePasswordModal()" style="cursor:pointer">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="lock" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Password</div>
+                <div class="settings-item-desc">Change your account password</div>
+              </div>
+            </div>
+            <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-muted)"></i>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Notifications</div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="bell" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Push Notifications</div>
+                <div class="settings-item-desc">Receive alerts for messages and calls</div>
+              </div>
+            </div>
+            <div class="toggle on" id="toggle-notif" onclick="toggleSetting('notif', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="volume-2" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Sounds</div>
+                <div class="settings-item-desc">Play sounds for messages and calls</div>
+              </div>
+            </div>
+            <div class="toggle on" id="toggle-sounds" onclick="toggleSetting('sounds', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="check-check" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Read Receipts</div>
+                <div class="settings-item-desc">Show when you've read messages</div>
+              </div>
+            </div>
+            <div class="toggle" id="toggle-receipts" onclick="toggleSetting('receipts', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Video & Audio</div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="monitor" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">HD Video</div>
+                <div class="settings-item-desc">Enable 1080p video quality</div>
+              </div>
+            </div>
+            <div class="toggle on" id="toggle-hd" onclick="toggleSetting('hd', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="mic-off" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Noise Cancellation</div>
+                <div class="settings-item-desc">AI-powered background noise removal</div>
+              </div>
+            </div>
+            <div class="toggle on" id="toggle-noise" onclick="toggleSetting('noise', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="blur" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Background Blur</div>
+                <div class="settings-item-desc">Blur your video background in calls</div>
+              </div>
+            </div>
+            <div class="toggle" id="toggle-blur" onclick="toggleSetting('blur', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Privacy</div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="eye-off" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Last Seen</div>
+                <div class="settings-item-desc">Show your last active time</div>
+              </div>
+            </div>
+            <div class="toggle on" id="toggle-lastseen" onclick="toggleSetting('lastseen', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon"><i data-lucide="user-check" style="width:17px;height:17px"></i></div>
+              <div>
+                <div class="settings-item-title">Online Status</div>
+                <div class="settings-item-desc">Show when you're active</div>
+              </div>
+            </div>
+            <div class="toggle on" id="toggle-online" onclick="toggleSetting('online', this)">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Danger Zone</div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon" style="background:var(--red-dim);color:var(--red)">
+                <i data-lucide="log-out" style="width:17px;height:17px"></i>
+              </div>
+              <div>
+                <div class="settings-item-title">Sign Out</div>
+                <div class="settings-item-desc">Sign out from ZeroOne</div>
+              </div>
+            </div>
+            <button class="btn btn-danger" onclick="handleSignOut()">Sign Out</button>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-left">
+              <div class="settings-item-icon" style="background:var(--red-dim);color:var(--red)">
+                <i data-lucide="trash-2" style="width:17px;height:17px"></i>
+              </div>
+              <div>
+                <div class="settings-item-title">Delete Account</div>
+                <div class="settings-item-desc">Permanently delete your account</div>
+              </div>
+            </div>
+            <button class="btn btn-danger" onclick="confirmDeleteAccount()">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROFILE PAGE -->
+    <div id="page-profile" class="content-area hidden">
+      <div class="settings-page">
+        <h1 class="settings-title">My Profile</h1>
+        <div class="settings-section">
+          <div style="padding:28px;display:flex;gap:24px;align-items:center;border-bottom:1px solid var(--border)">
+            <div style="position:relative;display:inline-flex">
+              <div class="avatar avatar-2xl" id="profile-avatar-display"></div>
+              <label for="profile-photo-input" style="position:absolute;bottom:0;right:0;width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid var(--bg-secondary)">
+                <i data-lucide="camera" style="width:13px;height:13px;color:#fff"></i>
+              </label>
+              <input type="file" id="profile-photo-input" accept="image/*" class="hidden" onchange="updateProfilePhoto(event)" />
+            </div>
+            <div>
+              <div style="font-family:var(--font-display);font-size:20px;font-weight:700" id="profile-display-name">—</div>
+              <div style="font-size:14px;color:var(--text-secondary);margin-top:4px" id="profile-handle">—</div>
+              <div style="font-size:13px;color:var(--text-muted);margin-top:8px" id="profile-email-display">—</div>
+            </div>
+          </div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+            <div class="input-group">
+              <label>Display Name</label>
+              <input type="text" id="edit-displayname" placeholder="Your display name" />
+            </div>
+            <div class="input-group">
+              <label>Username</label>
+              <div class="input-wrap">
+                <i class="input-icon" data-lucide="at-sign" style="width:16px;height:16px"></i>
+                <input type="text" id="edit-username" placeholder="your_username" />
+              </div>
+            </div>
+            <div class="input-group">
+              <label>Bio</label>
+              <textarea id="edit-bio" placeholder="Tell people about yourself..." rows="3" style="padding:11px 14px;resize:none;"></textarea>
+            </div>
+            <div class="input-group">
+              <label>Status</label>
+              <div class="status-options" style="display:flex;gap:8px;">
+                <button type="button" class="status-opt active" id="pstatus-online" onclick="selectProfileStatus('online')">
+                  <span class="online-dot" style="position:static;width:10px;height:10px;border:none;flex-shrink:0"></span>Online
+                </button>
+                <button type="button" class="status-opt" id="pstatus-busy" onclick="selectProfileStatus('busy')">
+                  <span class="online-dot busy" style="position:static;width:10px;height:10px;border:none;flex-shrink:0"></span>Busy
+                </button>
+                <button type="button" class="status-opt" id="pstatus-away" onclick="selectProfileStatus('away')">
+                  <span class="online-dot away" style="position:static;width:10px;height:10px;border:none;flex-shrink:0"></span>Away
+                </button>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="align-self:flex-start" onclick="saveProfile()">
+              <i data-lucide="save" style="width:16px;height:16px"></i>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- New Meeting Modal -->
+<div class="modal-overlay hidden" id="modal-new-meeting">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">New Meeting</h3>
+      <button class="modal-close" onclick="closeModal('modal-new-meeting')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="input-group">
+        <label>Meeting Topic</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="type" style="width:16px;height:16px"></i>
+          <input type="text" id="meeting-topic" placeholder="Enter a topic for this meeting" />
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <div class="pref-card" id="opt-video-on" onclick="toggleMeetingOpt('video')" style="flex:1;padding:12px">
+          <div class="pref-icon" style="width:32px;height:32px;margin-bottom:6px"><i data-lucide="video" style="width:16px;height:16px"></i></div>
+          <div class="pref-title" style="font-size:13px">Video On</div>
+          <div class="pref-check"><i data-lucide="check" style="width:12px;height:12px"></i></div>
+        </div>
+        <div class="pref-card active" id="opt-mic-on" onclick="toggleMeetingOpt('mic')" style="flex:1;padding:12px">
+          <div class="pref-icon" style="width:32px;height:32px;margin-bottom:6px"><i data-lucide="mic" style="width:16px;height:16px"></i></div>
+          <div class="pref-title" style="font-size:13px">Mic On</div>
+          <div class="pref-check"><i data-lucide="check" style="width:12px;height:12px"></i></div>
+        </div>
+      </div>
+      <div style="background:var(--bg-tertiary);border-radius:var(--radius-md);padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;font-weight:500">Meeting ID</div>
+          <div style="font-size:15px;font-weight:700;font-family:var(--font-display);letter-spacing:2px;color:var(--accent)" id="meeting-id-display">— — —</div>
+        </div>
+        <button class="btn btn-ghost" onclick="copyMeetingId()" style="font-size:12px">
+          <i data-lucide="copy" style="width:14px;height:14px"></i>
+          Copy
+        </button>
+      </div>
+      <button class="btn btn-primary w-full" onclick="startMeeting()">
+        <i data-lucide="video" style="width:16px;height:16px"></i>
+        Start Meeting
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Join Meeting Modal -->
+<div class="modal-overlay hidden" id="modal-join">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Join Meeting</h3>
+      <button class="modal-close" onclick="closeModal('modal-join')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="input-group">
+        <label>Meeting ID or Link</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="link" style="width:16px;height:16px"></i>
+          <input type="text" id="join-meeting-id" placeholder="Enter meeting ID or paste link" />
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Your Name (for this meeting)</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="user" style="width:16px;height:16px"></i>
+          <input type="text" id="join-display-name" placeholder="Your name" />
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-join')">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="joinMeeting()">
+          <i data-lucide="log-in" style="width:16px;height:16px"></i>
+          Join
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal-overlay hidden" id="modal-schedule">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3 class="modal-title">Schedule Meeting</h3>
+      <button class="modal-close" onclick="closeModal('modal-schedule')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="input-group">
+        <label>Meeting Topic</label>
+        <input type="text" id="sched-topic" placeholder="Team standup, Client call..." />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="input-group">
+          <label>Date</label>
+          <input type="date" id="sched-date" />
+        </div>
+        <div class="input-group">
+          <label>Time</label>
+          <input type="time" id="sched-time" />
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Duration</label>
+        <select id="sched-duration" style="padding:11px 14px">
+          <option value="30">30 minutes</option>
+          <option value="60" selected>1 hour</option>
+          <option value="90">1.5 hours</option>
+          <option value="120">2 hours</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Description (optional)</label>
+        <textarea id="sched-desc" placeholder="Add agenda or notes..." rows="2" style="padding:11px 14px;resize:none"></textarea>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-schedule')">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="scheduleMeeting()">
+          <i data-lucide="calendar" style="width:16px;height:16px"></i>
+          Schedule
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="modal-overlay hidden" id="modal-add-contact">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Add Contact</h3>
+      <button class="modal-close" onclick="closeModal('modal-add-contact')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="input-group">
+        <label>Email or Username</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="search" style="width:16px;height:16px"></i>
+          <input type="text" id="add-contact-query" placeholder="email@example.com or @username" />
+        </div>
+      </div>
+      <div id="contact-search-results"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-add-contact')">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="searchContact()">
+          <i data-lucide="search" style="width:16px;height:16px"></i>
+          Search
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal-overlay hidden" id="modal-create-group">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Create Group</h3>
+      <button class="modal-close" onclick="closeModal('modal-create-group')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:16px">
+        <label for="group-photo-input" style="width:64px;height:64px;border-radius:50%;background:var(--accent-dim);border:2px dashed var(--accent);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--accent);flex-shrink:0">
+          <i data-lucide="camera" style="width:22px;height:22px"></i>
+        </label>
+        <input type="file" id="group-photo-input" accept="image/*" class="hidden" />
+        <div class="input-group" style="flex:1">
+          <label>Group Name</label>
+          <input type="text" id="group-name" placeholder="Team design, Dev crew..." />
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Add Members</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="user-plus" style="width:16px;height:16px"></i>
+          <input type="text" id="group-member-search" placeholder="Search contacts..." oninput="searchGroupMembers(this.value)" />
+        </div>
+      </div>
+      <div id="group-member-results"></div>
+      <div id="group-selected-members" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-create-group')">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="createGroup()">
+          <i data-lucide="users-round" style="width:16px;height:16px"></i>
+          Create Group
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Chat Modal -->
+<div class="modal-overlay hidden" id="modal-new-chat">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">New Conversation</h3>
+      <button class="modal-close" onclick="closeModal('modal-new-chat')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="input-group">
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="search" style="width:16px;height:16px"></i>
+          <input type="text" id="new-chat-search" placeholder="Search by name or @username..." oninput="searchNewChatUsers(this.value)" autofocus />
+        </div>
+      </div>
+      <div id="new-chat-results" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay hidden" id="modal-change-password">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">Change Password</h3>
+      <button class="modal-close" onclick="closeModal('modal-change-password')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="input-group">
+        <label>Current Password</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="lock" style="width:16px;height:16px"></i>
+          <input type="password" id="old-password" placeholder="Your current password" />
+        </div>
+      </div>
+      <div class="input-group">
+        <label>New Password</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="lock" style="width:16px;height:16px"></i>
+          <input type="password" id="new-password" placeholder="New password (min. 8 chars)" />
+        </div>
+      </div>
+      <div class="input-group">
+        <label>Confirm New Password</label>
+        <div class="input-wrap">
+          <i class="input-icon" data-lucide="lock" style="width:16px;height:16px"></i>
+          <input type="password" id="confirm-new-password" placeholder="Confirm new password" />
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeModal('modal-change-password')">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Incoming Call Overlay -->
+<div class="incoming-call hidden" id="incoming-call-overlay">
+  <div class="incoming-call-header">
+    <div class="incoming-call-title">Incoming Call</div>
+    <div class="avatar-wrap incoming-call-avatar">
+      <div class="avatar avatar-xl" id="inc-caller-avatar"></div>
+    </div>
+    <div class="incoming-call-name" id="inc-caller-name">Unknown</div>
+    <div class="incoming-call-type" id="inc-call-type">Video Call</div>
+  </div>
+  <div class="incoming-call-actions">
+    <div class="inc-btn decline" onclick="declineCall()">
+      <i data-lucide="phone-off" style="width:22px;height:22px"></i>
+    </div>
+    <div class="inc-btn answer-audio" onclick="answerAudio()">
+      <i data-lucide="phone" style="width:22px;height:22px"></i>
+    </div>
+    <div class="inc-btn accept" onclick="answerCall()">
+      <i data-lucide="video" style="width:22px;height:22px"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Emoji Picker -->
+<div id="emoji-picker" class="hidden" style="position:fixed;z-index:500;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:12px;width:320px">
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<!-- Context Menu (right-click messages) -->
+<div id="msg-context-menu" class="hidden" style="position:fixed;z-index:600;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-lg);overflow:hidden;min-width:160px">
+  <div class="dropdown-item" onclick="replyToMessage()"><i data-lucide="corner-up-left" style="width:15px;height:15px"></i> Reply</div>
+  <div class="dropdown-item" onclick="reactToMessage()"><i data-lucide="smile" style="width:15px;height:15px"></i> React</div>
+  <div class="dropdown-item" onclick="copyMessageText()"><i data-lucide="copy" style="width:15px;height:15px"></i> Copy</div>
+  <div class="dropdown-item" onclick="forwardMessage()"><i data-lucide="forward" style="width:15px;height:15px"></i> Forward</div>
+  <div class="dropdown-divider"></div>
+  <div class="dropdown-item danger" onclick="deleteMessage()"><i data-lucide="trash-2" style="width:15px;height:15px"></i> Delete</div>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- In-Call Overlay (full-screen) -->
+<div id="call-overlay" class="hidden" style="position:fixed;inset:0;z-index:1500;display:flex;flex-direction:column;background:#07070f">
+  <div class="call-info-bar">
+    <div class="call-info-pill"><span class="online-dot" style="position:static;width:7px;height:7px;border:none;background:var(--green)"></span> Live</div>
+    <div class="call-info-pill" id="call-name-pill">Meeting</div>
+  </div>
+  <div class="call-duration" id="call-duration-display">00:00</div>
+  <div class="call-grid" id="call-grid"></div>
+  <div class="call-controls">
+    <button class="call-btn" id="btn-toggle-mic" onclick="toggleMic()" data-tooltip="Mute">
+      <i data-lucide="mic" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn" id="btn-toggle-video" onclick="toggleVideo()" data-tooltip="Stop video">
+      <i data-lucide="video" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn" id="btn-screen-share" onclick="toggleScreenShare()" data-tooltip="Share screen">
+      <i data-lucide="monitor" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn" id="btn-raise-hand" onclick="toggleRaiseHand()" data-tooltip="Raise hand">
+      <i data-lucide="hand" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn" onclick="openCallChat()" data-tooltip="Chat">
+      <i data-lucide="message-square" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn" onclick="openParticipantsList()" data-tooltip="Participants">
+      <i data-lucide="users" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn" onclick="openCallSettings()" data-tooltip="Settings">
+      <i data-lucide="settings" style="width:22px;height:22px"></i>
+    </button>
+    <button class="call-btn end-call" onclick="endCall()" data-tooltip="End call">
+      <i data-lucide="phone-off" style="width:24px;height:24px"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/calls.js"></script>
+<script src="js/contacts.js"></script>
+<script src="js/groups.js"></script>
+<script src="js/meetings.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/profile.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+    initDashboard();
+  });
+</script>
+</body>
+</html>
