@@ -502,11 +502,25 @@
     }
 
     function renderNavAvatar(name, avatar) {
-        const grad = AVATAR_GRADIENTS[avatar] || {from:'#52525b',to:'#27272a'};
         const ini  = name ? name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : '??';
         const nav  = document.getElementById('nav-avatar');
-        nav.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
-        nav.textContent = ini;
+        
+        // Map avatar IDs to SVG files
+        const avatarFiles = {
+            'avatar1': 'svg/Untitled design.svg',
+            'avatar2': 'svg/Untitled design (1).svg',
+            'avatar3': 'svg/Untitled design (2).svg',
+            'avatar4': 'svg/Untitled design (3).svg'
+        };
+        
+        const avatarFile = avatarFiles[avatar] || null;
+        if (avatarFile) {
+            nav.innerHTML = `<img src="${avatarFile}" class="w-full h-full object-contain" alt="Avatar">`;
+            nav.style.background = 'transparent';
+        } else {
+            nav.style.background = '#27272a';
+            nav.textContent = ini;
+        }
     }
 
     // ── Load message history ──────────────────────────────────────

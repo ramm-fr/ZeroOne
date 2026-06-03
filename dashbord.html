@@ -21,6 +21,16 @@
         .lucide { transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), color 0.25s ease; }
         .icon-hover:hover .lucide { transform: scale(1.1); color: #ffffff; }
         .rotate-hover:hover .lucide { transform: rotate(45deg); color: #ffffff; }
+        .avatar-option {
+            transition: all 0.2s ease;
+        }
+        .avatar-option:hover {
+            transform: scale(1.05);
+        }
+        .avatar-option.selected {
+            border-color: white;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
         /* Responsive Design */
         @media (max-width: 640px) {
             #search-input {
@@ -162,6 +172,23 @@
                 <!-- Edit Mode -->
                 <div id="profile-edit-mode" class="hidden space-y-4">
                     <div class="space-y-3">
+                        <div>
+                            <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Avatar</label>
+                            <div class="grid grid-cols-4 gap-2">
+                                <div class="avatar-option cursor-pointer rounded-lg border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center p-1" onclick="selectEditAvatar(this, 'avatar1')">
+                                    <img src="svg/Untitled design.svg" class="w-full h-full object-contain" alt="Avatar 1">
+                                </div>
+                                <div class="avatar-option cursor-pointer rounded-lg border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center p-1" onclick="selectEditAvatar(this, 'avatar2')">
+                                    <img src="svg/Untitled design (1).svg" class="w-full h-full object-contain" alt="Avatar 2">
+                                </div>
+                                <div class="avatar-option cursor-pointer rounded-lg border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center p-1" onclick="selectEditAvatar(this, 'avatar3')">
+                                    <img src="svg/Untitled design (2).svg" class="w-full h-full object-contain" alt="Avatar 3">
+                                </div>
+                                <div class="avatar-option cursor-pointer rounded-lg border-2 border-zinc-800 overflow-hidden aspect-square bg-zinc-900/50 flex items-center justify-center p-1" onclick="selectEditAvatar(this, 'avatar4')">
+                                    <img src="svg/Untitled design (3).svg" class="w-full h-full object-contain" alt="Avatar 4">
+                                </div>
+                            </div>
+                        </div>
                         <div>
                             <label class="text-[9px] uppercase tracking-widest text-zinc-600 block mb-1.5">Display Name</label>
                             <input type="text" id="edit-name" maxlength="30"
@@ -324,15 +351,37 @@
 
         function renderProfile(p) {
             if (!p) return;
-            const grad = AVATAR_GRADIENTS[p.avatar] || { from: '#52525b', to: '#27272a' };
             const initials = p.displayName ? p.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
             const navAvatar = document.getElementById('nav-avatar');
-            navAvatar.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
-            navAvatar.textContent = initials;
+            
+            // Map avatar IDs to SVG files
+            const avatarFiles = {
+                'avatar1': 'svg/Untitled design.svg',
+                'avatar2': 'svg/Untitled design (1).svg',
+                'avatar3': 'svg/Untitled design (2).svg',
+                'avatar4': 'svg/Untitled design (3).svg'
+            };
+            
+            const avatarFile = avatarFiles[p.avatar] || null;
+            if (avatarFile) {
+                navAvatar.innerHTML = `<img src="${avatarFile}" class="w-full h-full object-contain" alt="Avatar">`;
+                navAvatar.style.background = 'transparent';
+            } else {
+                navAvatar.style.background = '#27272a';
+                navAvatar.textContent = initials;
+            }
+            
             document.getElementById('nav-username').textContent = p.displayName.toLowerCase().replace(/\s+/g, '.');
             const drawerAvatar = document.getElementById('drawer-avatar');
-            drawerAvatar.style.background = `linear-gradient(135deg,${grad.from},${grad.to})`;
-            drawerAvatar.textContent = initials;
+            
+            if (avatarFile) {
+                drawerAvatar.innerHTML = `<img src="${avatarFile}" class="w-full h-full object-contain" alt="Avatar">`;
+                drawerAvatar.style.background = 'transparent';
+            } else {
+                drawerAvatar.style.background = '#27272a';
+                drawerAvatar.textContent = initials;
+            }
+            
             document.getElementById('drawer-name').textContent   = p.displayName || '—';
             document.getElementById('drawer-gender').textContent = p.gender || '';
             document.getElementById('drawer-uid').textContent    = p.uid || '------';
@@ -747,6 +796,7 @@
 
         // ── Edit Profile Functions ─────────────────────────────────────
         let currentProfile = null;
+        let selectedAvatar = 'avatar1';
 
         function toggleEditProfile(show) {
             const viewMode = document.getElementById('profile-view-mode');
@@ -765,6 +815,14 @@
                     document.getElementById('edit-twitter').value = currentProfile.socialLinks?.twitter || '';
                     document.getElementById('edit-instagram').value = currentProfile.socialLinks?.instagram || '';
                     document.getElementById('edit-github').value = currentProfile.socialLinks?.github || '';
+                    selectedAvatar = currentProfile.avatar || 'avatar1';
+                    // Highlight selected avatar
+                    document.querySelectorAll('#profile-edit-mode .avatar-option').forEach(el => {
+                        el.classList.remove('selected');
+                        if (el.getAttribute('onclick').includes(selectedAvatar)) {
+                            el.classList.add('selected');
+                        }
+                    });
                 }
 
                 viewMode.classList.add('hidden');
@@ -778,6 +836,14 @@
                 editButtons.classList.add('hidden');
             }
             lucide.createIcons();
+        }
+
+        function selectEditAvatar(element, avatar) {
+            selectedAvatar = avatar;
+            document.querySelectorAll('#profile-edit-mode .avatar-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            element.classList.add('selected');
         }
 
         async function saveProfile() {
@@ -805,6 +871,7 @@
                     display_name: name,
                     gender: gender,
                     bio: bio,
+                    avatar: selectedAvatar,
                     social_twitter: twitter,
                     social_instagram: instagram,
                     social_github: github
@@ -822,6 +889,7 @@
                     displayName: name,
                     gender: gender,
                     bio: bio,
+                    avatar: selectedAvatar,
                     socialLinks: {
                         twitter: twitter,
                         instagram: instagram,
