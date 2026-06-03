@@ -760,6 +760,22 @@
   </div>
 </div>
 
+<!-- Message Requests Panel (slides in over chat panel) -->
+<div id="requests-panel" class="requests-panel hidden">
+  <div class="requests-panel-header">
+    <button class="btn-icon btn-ghost" onclick="closeRequestsPanel()">
+      <i data-lucide="arrow-left" style="width:18px;height:18px"></i>
+    </button>
+    <h2 class="panel-title">Message Requests</h2>
+    <div style="width:40px"></div>
+  </div>
+  <p class="requests-panel-desc">
+    These are messages from people you don't follow or have in your contacts.
+    They can't see if you've read them until you accept.
+  </p>
+  <div id="requests-panel-body" class="requests-panel-body"></div>
+</div>
+
 <!-- New Chat Modal -->
 <div class="modal-overlay hidden" id="modal-new-chat">
   <div class="modal">

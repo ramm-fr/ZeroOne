@@ -156,13 +156,18 @@ service cloud.firestore {
       match /contacts/{contactId} {
         allow read, write: if request.auth.uid == userId;
       }
+      match /blocked/{blockedId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
+    // Chats (accepted + pending requests — members can always read)
     match /chats/{chatId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.members;
+      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.members;
+      allow update, delete: if request.auth != null && request.auth.uid in resource.data.members;
     }
     match /chats/{chatId}/messages/{messageId} {
-      allow read: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
-      allow create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
+      allow read, create: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members;
       allow update, delete: if request.auth != null && request.auth.uid == resource.data.senderId;
     }
     match /meetings/{meetingId} {
@@ -170,10 +175,14 @@ service cloud.firestore {
     }
     match /callHistory/{callId} {
       allow read, write: if request.auth != null && request.auth.uid in resource.data.participants;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.participants;
     }
     match /notifications/{notifId} {
-      allow read: if request.auth != null && request.auth.uid == resource.data.recipientId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.recipientId;
       allow create: if request.auth != null;
+    }
+    match /_healthcheck/{doc} {
+      allow read: if request.auth != null;
     }
   }
 }

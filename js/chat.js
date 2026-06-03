@@ -1,5 +1,6 @@
 /* ===== Chat / Messaging ===== */
 let chats = {};
+let chatRequests = {};          // pending message requests keyed by chatId
 let activeChat = null;
 let activeChatData = null;
 let messagesListener = null;
@@ -12,8 +13,11 @@ let allMessages = [];
 
 function listenToChats() {
   if (!currentUser) return;
-  const unsub = db.collection('chats')
+
+  // ── Accepted chats ────────────────────────────────────────────────────────
+  const unsub1 = db.collection('chats')
     .where('members', 'array-contains', currentUser.uid)
+    .where('status', '==', 'accepted')
     .orderBy('lastActivity', 'desc')
     .onSnapshot(snap => {
       chats = {};
@@ -21,50 +25,102 @@ function listenToChats() {
       renderChatList();
       updateUnreadBadge();
     }, e => console.error('chats listener:', e));
-  unsubscribers.push(unsub);
+
+  // ── Pending requests (where I am the recipient) ───────────────────────────
+  const unsub2 = db.collection('chats')
+    .where('recipient', '==', currentUser.uid)
+    .where('status', '==', 'pending')
+    .orderBy('lastActivity', 'desc')
+    .onSnapshot(snap => {
+      chatRequests = {};
+      snap.docs.forEach(d => { chatRequests[d.id] = { id: d.id, ...d.data() }; });
+      renderChatList();
+      updateUnreadBadge();
+      updateRequestsBadge();
+    }, e => console.error('requests listener:', e));
+
+  unsubscribers.push(unsub1, unsub2);
 }
 
 function renderChatList() {
   const list = document.getElementById('chat-list');
   if (!list) return;
-  const chatArr = Object.values(chats);
-  if (chatArr.length === 0) {
-    list.innerHTML = '<div class="empty-state" style="padding:32px 16px"><div class="empty-icon"><i data-lucide="message-square" style="width:24px;height:24px"></i></div><div class="empty-title">No chats yet</div><div class="empty-desc">Start a new conversation</div></div>';
+
+  const chatArr    = Object.values(chats);
+  const requestArr = Object.values(chatRequests);
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  if (chatArr.length === 0 && requestArr.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state" style="padding:32px 16px">
+        <div class="empty-icon"><i data-lucide="message-square" style="width:24px;height:24px"></i></div>
+        <div class="empty-title">No chats yet</div>
+        <div class="empty-desc">Start a new conversation</div>
+      </div>`;
     lucide.createIcons({ nodes: [list] });
     return;
   }
-  list.innerHTML = chatArr.map(chat => {
-    const isGroup = chat.type === 'group';
-    const other = isGroup ? null : (chat.memberData || []).find(m => m.uid !== currentUser.uid);
-    const name = isGroup ? (chat.name || 'Group') : (other?.displayName || 'Unknown');
-    const initials = getInitials(name);
-    const lastMsg = chat.lastMessage || '';
-    const unread = (chat.unreadCount || {})[currentUser.uid] || 0;
-    const isActive = activeChat === chat.id;
-    return `
-    <div class="chat-item ${isActive ? 'active' : ''}" onclick="openChat('${chat.id}')" data-chat-id="${chat.id}">
-      <div class="avatar-wrap">
-        <div class="avatar avatar-md" style="background:${stringToColor(name)}22;color:${stringToColor(name)}">${initials}</div>
-        ${!isGroup ? `<span class="online-dot" id="dot-${other?.uid || ''}"></span>` : ''}
+
+  // ── Message Requests banner ────────────────────────────────────────────────
+  let html = '';
+  if (requestArr.length > 0) {
+    html += `
+      <div class="requests-banner" onclick="showRequestsPanel()">
+        <div class="requests-banner-left">
+          <div class="requests-banner-icon">
+            <i data-lucide="mail" style="width:18px;height:18px"></i>
+          </div>
+          <div>
+            <div class="requests-banner-title">Message Requests</div>
+            <div class="requests-banner-sub">${requestArr.length} pending request${requestArr.length > 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        <i data-lucide="chevron-right" style="width:16px;height:16px;color:var(--text-muted)"></i>
       </div>
-      <div class="chat-item-info">
-        <div class="chat-item-name">${name}</div>
-        <div class="chat-item-preview">${lastMsg}</div>
-      </div>
-      <div class="chat-item-meta">
-        <span class="chat-item-time">${formatTime(chat.lastActivity)}</span>
-        ${unread > 0 ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+      <div class="chat-list-divider">Chats</div>`;
+  }
+
+  // ── Accepted chats ─────────────────────────────────────────────────────────
+  if (chatArr.length === 0) {
+    html += `<div class="text-secondary text-sm text-center" style="padding:20px">No accepted chats yet</div>`;
+  } else {
+    html += chatArr.map(chat => renderChatItem(chat)).join('');
+  }
+
+  list.innerHTML = html;
   lucide.createIcons({ nodes: [list] });
-  // Subscribe to presence for each contact
+
   chatArr.forEach(chat => {
     if (chat.type !== 'group') {
       const other = (chat.memberData || []).find(m => m.uid !== currentUser.uid);
       if (other) watchPresence(other.uid);
     }
   });
+}
+
+function renderChatItem(chat) {
+  const isGroup  = chat.type === 'group';
+  const other    = isGroup ? null : (chat.memberData || []).find(m => m.uid !== currentUser.uid);
+  const name     = isGroup ? (chat.name || 'Group') : (other?.displayName || 'Unknown');
+  const initials = getInitials(name);
+  const lastMsg  = chat.lastMessage || '';
+  const unread   = (chat.unreadCount || {})[currentUser.uid] || 0;
+  const isActive = activeChat === chat.id;
+  return `
+  <div class="chat-item ${isActive ? 'active' : ''}" onclick="openChat('${chat.id}')" data-chat-id="${chat.id}">
+    <div class="avatar-wrap">
+      <div class="avatar avatar-md" style="background:${stringToColor(name)}22;color:${stringToColor(name)}">${initials}</div>
+      ${!isGroup ? `<span class="online-dot" id="dot-${other?.uid || ''}"></span>` : ''}
+    </div>
+    <div class="chat-item-info">
+      <div class="chat-item-name">${name}</div>
+      <div class="chat-item-preview">${lastMsg}</div>
+    </div>
+    <div class="chat-item-meta">
+      <span class="chat-item-time">${formatTime(chat.lastActivity)}</span>
+      ${unread > 0 ? `<span class="badge">${unread > 99 ? '99+' : unread}</span>` : ''}
+    </div>
+  </div>`;
 }
 
 function watchPresence(uid) {
@@ -83,6 +139,13 @@ function updateUnreadBadge() {
   if (badge) badge.classList.toggle('hidden', total === 0);
 }
 
+function updateRequestsBadge() {
+  const count = Object.values(chatRequests).length;
+  // Show a dot on messages nav if there are pending requests
+  const badge = document.getElementById('badge-messages');
+  if (badge && count > 0) badge.classList.remove('hidden');
+}
+
 function filterChats(query) {
   const q = query.toLowerCase();
   document.querySelectorAll('.chat-item').forEach(el => {
@@ -93,9 +156,14 @@ function filterChats(query) {
 
 async function openChat(chatId) {
   activeChat = chatId;
-  activeChatData = chats[chatId];
+  activeChatData = chats[chatId] || chatRequests[chatId];
   // Mark as read
   markChatRead(chatId);
+  // Clear any request bar from a previous preview
+  clearRequestBar();
+  // Re-enable input
+  const textarea = document.getElementById('msg-textarea');
+  if (textarea) textarea.disabled = false;
   // Update UI
   document.getElementById('chat-empty')?.classList.add('hidden');
   document.getElementById('chat-view')?.classList.remove('hidden');
@@ -103,6 +171,14 @@ async function openChat(chatId) {
   document.querySelectorAll('.chat-item').forEach(el => {
     el.classList.toggle('active', el.dataset.chatId === chatId);
   });
+  // If this is still a pending request, show the bar
+  if (activeChatData?.status === 'pending' && activeChatData?.recipient === currentUser.uid) {
+    showRequestBar(chatId);
+    const inputWrap = document.getElementById('msg-input-wrap');
+    if (inputWrap) inputWrap.style.opacity = '0.4';
+    if (textarea) textarea.disabled = true;
+    document.getElementById('send-btn').disabled = true;
+  }
   // Update header
   updateChatHeader();
   // Listen to messages
@@ -138,6 +214,18 @@ function renderMessages(msgs) {
   if (!area) return;
   let html = '';
   let lastDate = null;
+
+  // Show pending notice for the sender
+  if (activeChatData?.status === 'pending' && activeChatData?.sender === currentUser.uid) {
+    html += `
+      <div class="pending-request-notice">
+        <span>
+          <i data-lucide="clock" style="width:13px;height:13px"></i>
+          Message request sent — waiting for ${(activeChatData.memberData || []).find(m => m.uid !== currentUser.uid)?.displayName || 'them'} to accept
+        </span>
+      </div>`;
+  }
+
   msgs.forEach((msg, idx) => {
     const msgDate = formatDate(msg.createdAt);
     if (msgDate !== lastDate) {
@@ -149,7 +237,6 @@ function renderMessages(msgs) {
   area.innerHTML = html;
   lucide.createIcons({ nodes: [area] });
   area.scrollTop = area.scrollHeight;
-  // Attach context menu listeners
   area.querySelectorAll('.message-bubble').forEach(el => {
     el.addEventListener('contextmenu', e => { e.preventDefault(); showMsgContextMenu(e, el.dataset.msgId); });
   });
@@ -535,23 +622,238 @@ async function searchNewChatUsers(query) {
 
 async function startDirectChat(uid, name, photo) {
   closeModal('modal-new-chat');
-  // Check if chat already exists
-  const existing = Object.values(chats).find(c => c.type === 'direct' && c.members.includes(uid) && c.members.includes(currentUser.uid));
+
+  // Already have an accepted chat?
+  const existing = Object.values(chats).find(
+    c => c.type === 'direct' && c.members.includes(uid) && c.members.includes(currentUser.uid)
+  );
   if (existing) { openChat(existing.id); return; }
+
+  // Already sent a pending request?
+  const pendingSnap = await db.collection('chats')
+    .where('sender', '==', currentUser.uid)
+    .where('recipient', '==', uid)
+    .where('status', '==', 'pending')
+    .limit(1).get();
+  if (!pendingSnap.empty) {
+    showToast('Message request already sent — waiting for acceptance', 'info');
+    // Still open the chat so sender can see their sent message
+    openChat(pendingSnap.docs[0].id);
+    return;
+  }
+
+  // Check if they already sent us a request — if so, auto-accept
+  const theirRequestSnap = await db.collection('chats')
+    .where('sender', '==', uid)
+    .where('recipient', '==', currentUser.uid)
+    .where('status', '==', 'pending')
+    .limit(1).get();
+  if (!theirRequestSnap.empty) {
+    await acceptRequest(theirRequestSnap.docs[0].id);
+    return;
+  }
+
+  // Check if they are already a contact (contacts skip the request step)
+  const contactSnap = await db.collection('users').doc(currentUser.uid)
+    .collection('contacts').doc(uid).get();
+  const isContact = contactSnap.exists;
+
   try {
-    const meData = { uid: currentUser.uid, displayName: currentUserData?.displayName || currentUser.displayName || 'Me', photoURL: currentUserData?.photoURL || '' };
+    const meData   = { uid: currentUser.uid, displayName: currentUserData?.displayName || currentUser.displayName || 'Me', photoURL: currentUserData?.photoURL || '' };
     const themData = { uid, displayName: name, photoURL: photo };
+
     const chatRef = await db.collection('chats').add({
-      type: 'direct',
-      members: [currentUser.uid, uid],
-      memberData: [meData, themData],
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      type:         'direct',
+      members:      [currentUser.uid, uid],
+      memberData:   [meData, themData],
+      sender:       currentUser.uid,
+      recipient:    uid,
+      // Contacts go straight to accepted; strangers are pending
+      status:       isContact ? 'accepted' : 'pending',
+      createdAt:    firebase.firestore.FieldValue.serverTimestamp(),
       lastActivity: firebase.firestore.FieldValue.serverTimestamp(),
-      lastMessage: '',
-      unreadCount: {}
+      lastMessage:  '',
+      unreadCount:  {}
     });
+
+    if (!isContact) {
+      // Notify the recipient
+      await createNotification(uid, 'message_request',
+        `sent you a message request`, chatRef.id);
+      showToast(`Message request sent to ${name}`, 'success');
+    }
+
     openChat(chatRef.id);
-  } catch (e) { showToast('Failed to start chat', 'error'); }
+  } catch (e) { showToast('Failed to start chat: ' + e.message, 'error'); }
+}
+
+// ── Request Actions ────────────────────────────────────────────────────────
+
+async function acceptRequest(chatId) {
+  try {
+    await db.collection('chats').doc(chatId).update({ status: 'accepted' });
+    // Notify sender their request was accepted
+    const chat = chatRequests[chatId] || (await db.collection('chats').doc(chatId).get()).data();
+    if (chat?.sender) {
+      await createNotification(chat.sender, 'request_accepted',
+        `accepted your message request`, chatId);
+    }
+    showToast('Request accepted', 'success');
+    openChat(chatId);
+    closeRequestsPanel();
+  } catch (e) { showToast('Failed to accept: ' + e.message, 'error'); }
+}
+
+async function declineRequest(chatId) {
+  try {
+    await db.collection('chats').doc(chatId).update({ status: 'declined' });
+    delete chatRequests[chatId];
+    renderChatList();
+    renderRequestsPanel();
+    showToast('Request declined', 'info');
+  } catch (e) { showToast('Failed to decline: ' + e.message, 'error'); }
+}
+
+async function blockRequest(chatId) {
+  try {
+    const chat = chatRequests[chatId] || {};
+    const senderId = chat.sender;
+    if (senderId) {
+      // Add to blocked list in user's profile
+      await db.collection('users').doc(currentUser.uid)
+        .collection('blocked').doc(senderId).set({ blockedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    await db.collection('chats').doc(chatId).update({ status: 'blocked' });
+    delete chatRequests[chatId];
+    renderChatList();
+    renderRequestsPanel();
+    showToast('User blocked', 'info');
+  } catch (e) { showToast('Failed to block: ' + e.message, 'error'); }
+}
+
+// ── Requests Panel ─────────────────────────────────────────────────────────
+
+function showRequestsPanel() {
+  const panel = document.getElementById('requests-panel');
+  if (panel) {
+    panel.classList.remove('hidden');
+    renderRequestsPanel();
+    lucide.createIcons({ nodes: [panel] });
+  }
+}
+
+function closeRequestsPanel() {
+  document.getElementById('requests-panel')?.classList.add('hidden');
+}
+
+function renderRequestsPanel() {
+  const body = document.getElementById('requests-panel-body');
+  if (!body) return;
+  const requestArr = Object.values(chatRequests);
+  if (!requestArr.length) {
+    body.innerHTML = `
+      <div class="empty-state" style="padding:48px 20px">
+        <div class="empty-icon"><i data-lucide="mail-open" style="width:28px;height:28px"></i></div>
+        <div class="empty-title">No message requests</div>
+        <div class="empty-desc">When someone new messages you, it'll show up here</div>
+      </div>`;
+    lucide.createIcons({ nodes: [body] });
+    return;
+  }
+  body.innerHTML = requestArr.map(req => {
+    const sender = (req.memberData || []).find(m => m.uid !== currentUser.uid);
+    const name   = sender?.displayName || 'Unknown';
+    return `
+    <div class="request-item" id="req-${req.id}">
+      <div class="request-avatar-wrap">
+        <div class="avatar avatar-lg" style="background:${stringToColor(name)}22;color:${stringToColor(name)}">${getInitials(name)}</div>
+      </div>
+      <div class="request-info">
+        <div class="request-name">${name}</div>
+        <div class="request-preview">${req.lastMessage || 'Wants to message you'}</div>
+        <div class="request-time">${formatTime(req.lastActivity)}</div>
+      </div>
+      <div class="request-actions">
+        <button class="btn btn-primary" style="font-size:13px;padding:7px 14px" onclick="previewRequest('${req.id}')">
+          <i data-lucide="eye" style="width:14px;height:14px"></i>Preview
+        </button>
+        <button class="btn btn-green" style="font-size:13px;padding:7px 14px" onclick="acceptRequest('${req.id}')">
+          <i data-lucide="check" style="width:14px;height:14px"></i>Accept
+        </button>
+        <button class="btn btn-danger" style="font-size:13px;padding:7px 14px" onclick="declineRequest('${req.id}')">
+          <i data-lucide="x" style="width:14px;height:14px"></i>Decline
+        </button>
+        <button class="btn btn-ghost" style="font-size:13px;padding:7px 14px" onclick="blockRequest('${req.id}')">
+          <i data-lucide="ban" style="width:14px;height:14px"></i>Block
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+  lucide.createIcons({ nodes: [body] });
+}
+
+// Preview a request's messages without accepting
+async function previewRequest(chatId) {
+  const req = chatRequests[chatId];
+  if (!req) return;
+  activeChatData = req;
+  activeChat = chatId;
+  // Update header
+  document.getElementById('chat-empty')?.classList.add('hidden');
+  document.getElementById('chat-view')?.classList.remove('hidden');
+  updateChatHeader();
+  // Show request action bar in the chat area
+  showRequestBar(chatId);
+  // Load messages (read-only preview)
+  if (messagesListener) messagesListener();
+  messagesListener = db.collection('chats').doc(chatId).collection('messages')
+    .orderBy('createdAt', 'asc')
+    .onSnapshot(snap => {
+      allMessages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderMessages(allMessages);
+    });
+  // Disable input while in preview
+  const inputArea = document.getElementById('msg-input-wrap');
+  if (inputArea) inputArea.style.opacity = '0.4';
+  document.getElementById('msg-textarea').disabled = true;
+  document.getElementById('send-btn').disabled = true;
+  closeRequestsPanel();
+  navigate('messages');
+}
+
+function showRequestBar(chatId) {
+  // Remove any existing bar
+  document.getElementById('request-action-bar')?.remove();
+  const bar = document.createElement('div');
+  bar.id = 'request-action-bar';
+  bar.className = 'request-action-bar';
+  bar.innerHTML = `
+    <div class="request-bar-info">
+      <i data-lucide="shield-alert" style="width:18px;height:18px;color:var(--yellow)"></i>
+      <span>This person isn't in your contacts. Review their message.</span>
+    </div>
+    <div class="request-bar-btns">
+      <button class="btn btn-green" onclick="acceptRequest('${chatId}')">
+        <i data-lucide="check" style="width:15px;height:15px"></i>Accept
+      </button>
+      <button class="btn btn-danger" onclick="declineRequest('${chatId}')">
+        <i data-lucide="x" style="width:15px;height:15px"></i>Decline
+      </button>
+      <button class="btn btn-ghost" onclick="blockRequest('${chatId}')">
+        <i data-lucide="ban" style="width:15px;height:15px"></i>Block
+      </button>
+    </div>`;
+  const msgInputArea = document.querySelector('.message-input-area');
+  if (msgInputArea) msgInputArea.parentNode.insertBefore(bar, msgInputArea);
+  lucide.createIcons({ nodes: [bar] });
+}
+
+function clearRequestBar() {
+  document.getElementById('request-action-bar')?.remove();
+  const inputArea = document.getElementById('msg-input-wrap');
+  if (inputArea) inputArea.style.opacity = '';
+  const textarea = document.getElementById('msg-textarea');
+  if (textarea) textarea.disabled = false;
 }
 
 // Toggle Info Panel
